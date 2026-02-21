@@ -16,7 +16,7 @@ export const validateScheduleChange = async (
 ): Promise<{ ok: boolean; conflict?: string; suggestion?: string }> => {
   const claude = getClaude();
   const response = await claude.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-haiku-4-5',
     max_tokens: 300,
     messages: [{
       role: 'user',

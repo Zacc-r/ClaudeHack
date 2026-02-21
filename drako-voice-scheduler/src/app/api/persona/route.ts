@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 
     const claude = getClaude();
     const response = await claude.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-haiku-4-5',
       max_tokens: 600,
       messages: [{
         role: 'user',

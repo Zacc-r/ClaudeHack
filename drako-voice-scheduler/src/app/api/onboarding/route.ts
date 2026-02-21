@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
 
     // Generate persona + schedule in parallel
     const personaPromise = claude.messages.create({
-      model: 'claude-haiku-4-20250514',
+      model: 'claude-haiku-4-5',
       max_tokens: 600,
       messages: [{
         role: 'user',
@@ -215,7 +215,7 @@ Respond ONLY with valid JSON:
     }).catch(() => null); // never block onboarding if persona fails
 
     const response = await claude.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-haiku-4-5',
       max_tokens: 800,
       messages: [{
         role: 'user',
