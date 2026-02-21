@@ -482,10 +482,21 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
         return (
           <div key="step-building" className="animate-slideInRight text-center">
-            <span className="text-6xl block mb-4 animate-eyePulse">🐉</span>
-            <h2 className="text-xl font-bold mb-6" style={{ color: 'var(--text-primary)' }}>
+            <div className="relative inline-block mb-4">
+              <span className="text-6xl block animate-robotThinking">🐉</span>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex gap-2 mt-2">
+                  <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-robotEyeGlow" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-[var(--accent-glow)] animate-robotEyeGlow" style={{ animationDelay: '150ms' }} />
+                </div>
+              </div>
+            </div>
+            <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
               Building your perfect day...
             </h2>
+            <p className="text-sm mb-6 animate-pulse" style={{ color: 'var(--accent-glow)' }}>
+              🤖 Claude is thinking...
+            </p>
             
             <div
               className="h-2 rounded-full overflow-hidden mb-6"

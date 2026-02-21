@@ -127,6 +127,32 @@ body {
   50% { transform: scale(1.2); opacity: 1; }
 }
 
+@keyframes robotThinking {
+  0%, 100% { 
+    filter: drop-shadow(0 0 8px rgba(108, 92, 231, 0.6));
+  }
+  25% { 
+    filter: drop-shadow(0 0 16px rgba(168, 85, 247, 0.9));
+  }
+  50% { 
+    filter: drop-shadow(0 0 24px rgba(108, 92, 231, 1));
+  }
+  75% { 
+    filter: drop-shadow(0 0 16px rgba(168, 85, 247, 0.9));
+  }
+}
+
+@keyframes robotEyeGlow {
+  0%, 100% { 
+    text-shadow: 0 0 10px rgba(108, 92, 231, 0.8), 0 0 20px rgba(108, 92, 231, 0.4);
+    transform: scale(1);
+  }
+  50% { 
+    text-shadow: 0 0 20px rgba(168, 85, 247, 1), 0 0 40px rgba(168, 85, 247, 0.6), 0 0 60px rgba(108, 92, 231, 0.4);
+    transform: scale(1.1);
+  }
+}
+
 .animate-slideInRight {
   animation: slideInRight 300ms ease-out forwards;
 }
@@ -147,6 +173,14 @@ body {
   animation: eyePulse 1.5s ease-in-out infinite;
 }
 
+.animate-robotThinking {
+  animation: robotThinking 1.5s ease-in-out infinite, eyePulse 1.5s ease-in-out infinite;
+}
+
+.animate-robotEyeGlow {
+  animation: robotEyeGlow 1.2s ease-in-out infinite;
+}
+
 @keyframes bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-15px); }
@@ -154,4 +188,32 @@ body {
 
 .animate-bounce {
   animation: bounce 0.6s ease-in-out;
+}
+
+@keyframes progressFill {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+@keyframes bounceIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes checkmark {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-progressFill {
+  animation: progressFill 2.5s ease-out forwards;
+}
+
+.animate-bounceIn {
+  animation: bounceIn 0.5s ease-out forwards;
+}
+
+.animate-checkmark {
+  animation: checkmark 0.3s ease-out forwards;
 }
