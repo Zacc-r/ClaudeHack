@@ -73,6 +73,44 @@ div[style*="position: fixed"][style*="top: 0"] {
   color: #E2E8F0 !important;
 }
 
+/* Move CopilotKit FAB to bottom-left for thumb zone accessibility */
+[class*="copilotkit"][class*="Trigger"],
+[class*="copilotkit"][class*="trigger"],
+[data-copilotkit-popup-trigger],
+button[aria-label="Open Chat"] {
+  right: auto !important;
+  left: 16px !important;
+  bottom: 16px !important;
+}
+
+/* Ensure popup opens from left side */
+[class*="copilotkit"][class*="Popup"],
+[class*="copilotkit"][class*="popup"],
+[data-copilotkit-popup] {
+  right: auto !important;
+  left: 16px !important;
+  bottom: 80px !important;
+}
+
+/* Responsive robot scaling - shrink on small screens */
+.drako-robot-responsive {
+  transform-origin: center center;
+}
+
+@media (max-width: 480px) {
+  .drako-robot-responsive {
+    transform: scale(0.75);
+    margin-bottom: -8px; /* Compensate for visual space */
+  }
+}
+
+@media (max-width: 380px) {
+  .drako-robot-responsive {
+    transform: scale(0.6);
+    margin-bottom: -16px;
+  }
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }

@@ -25,7 +25,7 @@ export function DrakoRobot({ size = 'lg', state = 'idle', className = '' }: Drak
 
   return (
     <div 
-      className={`relative flex items-center justify-center ${stateClass} ${className}`}
+      className={`relative flex items-center justify-center ${stateClass} ${className} drako-robot-responsive`}
       style={{ width: s.container, height: s.container }}
     >
       <svg

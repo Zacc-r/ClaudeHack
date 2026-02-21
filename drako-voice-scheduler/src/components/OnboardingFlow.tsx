@@ -86,6 +86,106 @@ const BUILDING_STEPS = [
   'Optimizing your day...',
 ];
 
+const SWIPE_CATEGORIES = [
+  { id: 'exercise',   name: 'Exercise',      emoji: '🏋️', color: '#EF4444' },
+  { id: 'deep_work',  name: 'Deep Work',     emoji: '🧠', color: '#14B8A6' },
+  { id: 'learning',   name: 'Learning',      emoji: '📚', color: '#F59E0B' },
+  { id: 'creative',   name: 'Creative Time', emoji: '🎨', color: '#EC4899' },
+  { id: 'social',     name: 'Social',        emoji: '👥', color: '#8B5CF6' },
+  { id: 'meditation', name: 'Meditation',    emoji: '🧘', color: '#6366F1' },
+];
+
+interface SwipeCardProps {
+  category: typeof SWIPE_CATEGORIES[number];
+  minutes: number;
+  onTimeChange: (delta: number) => void;
+  onLockIn: () => void;
+}
+
+function SwipeCard({ category, minutes, onTimeChange, onLockIn }: SwipeCardProps) {
+  const startRef = useRef<{ x: number; y: number } | null>(null);
+  const [delta, setDelta] = useState({ x: 0, y: 0 });
+  const [flyOut, setFlyOut] = useState(false);
+  const [settling, setSettling] = useState(false);
+
+  const onStart = (x: number, y: number) => { startRef.current = { x, y }; setSettling(false); };
+  const onMove = (x: number, y: number) => {
+    if (!startRef.current) return;
+    setDelta({ x: x - startRef.current.x, y: y - startRef.current.y });
+  };
+  const onEnd = () => {
+    if (!startRef.current) return;
+    if (delta.x > 100) onTimeChange(30);
+    else if (delta.x < -100) onTimeChange(-30);
+
+    if (delta.y < -80) {
+      setFlyOut(true);
+      setTimeout(() => onLockIn(), 350);
+    } else {
+      setSettling(true);
+      setDelta({ x: 0, y: 0 });
+    }
+    startRef.current = null;
+  };
+
+  const hrs = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  const timeLabel = hrs > 0 ? `${hrs}h ${mins > 0 ? `${mins}m` : ''}`.trim() : `${mins}m`;
+  const rotDeg = delta.x * 0.08;
+  const greenOp = Math.min(Math.max(delta.x / 200, 0), 0.4);
+  const redOp = Math.min(Math.max(-delta.x / 200, 0), 0.4);
+
+  return (
+    <div
+      className="relative w-72 h-96 rounded-3xl select-none touch-none cursor-grab active:cursor-grabbing"
+      style={{
+        background: `linear-gradient(135deg, ${category.color}33, ${category.color}11)`,
+        border: `2px solid ${category.color}66`,
+        transform: flyOut
+          ? 'translateY(-120vh) scale(0.8)'
+          : `translate(${delta.x}px, ${delta.y}px) rotate(${rotDeg}deg)`,
+        transition: flyOut
+          ? 'transform 0.35s ease-in'
+          : settling
+            ? 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            : 'none',
+        opacity: flyOut ? 0 : 1,
+      }}
+      onMouseDown={e => onStart(e.clientX, e.clientY)}
+      onMouseMove={e => onMove(e.clientX, e.clientY)}
+      onMouseUp={onEnd}
+      onMouseLeave={onEnd}
+      onTouchStart={e => onStart(e.touches[0].clientX, e.touches[0].clientY)}
+      onTouchMove={e => onMove(e.touches[0].clientX, e.touches[0].clientY)}
+      onTouchEnd={onEnd}
+    >
+      {/* Green tint overlay — swipe right */}
+      <div className="absolute inset-0 rounded-3xl pointer-events-none"
+        style={{ background: `rgba(16,185,129,${greenOp})` }} />
+      {/* Red tint overlay — swipe left */}
+      <div className="absolute inset-0 rounded-3xl pointer-events-none"
+        style={{ background: `rgba(239,68,68,${redOp})` }} />
+
+      <div className="relative z-10 flex flex-col items-center justify-center h-full p-6">
+        <span className="text-7xl mb-4">{category.emoji}</span>
+        <h3 className="text-2xl font-bold text-white mb-2">{category.name}</h3>
+        <p className="text-5xl font-black mb-1" style={{ color: category.color }}>{timeLabel}</p>
+        <p className="text-xs text-[#94A3B8] mb-4">per day</p>
+
+        {/* Hints */}
+        {delta.x > 50 && <p className="absolute top-6 right-6 text-green-400 font-bold text-lg rotate-12">+30 min</p>}
+        {delta.x < -50 && <p className="absolute top-6 left-6 text-red-400 font-bold text-lg -rotate-12">-30 min</p>}
+        {delta.y < -40 && <p className="absolute bottom-6 text-[#38BDF8] font-bold text-lg">⬆ Lock in!</p>}
+
+        <div className="mt-auto space-y-1 text-center">
+          <p className="text-xs text-[#475569]">← less · more →</p>
+          <p className="text-xs text-[#475569]">↑ swipe up to lock in</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProgressDots({ current, total }: { current: number; total: number }) {
   if (current >= total) return null;
   return (
@@ -104,6 +204,7 @@ function ProgressDots({ current, total }: { current: number; total: number }) {
 export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [state, setState] = useState<OnboardingState>({
     step: 0, name: '', type: '', rhythm: '', selectedActivities: [],
+    swipeIndex: 0, timeAllocations: {},
     struggle: '', isSubmitting: false, error: null, buildingStep: 0, robotState: 'greeting',
   });
 
@@ -132,19 +233,28 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     setTimeout(() => nextStep(), 300);
   }, [nextStep]);
 
-  const toggleActivity = useCallback((id: string) => {
-    setState(prev => ({
-      ...prev,
-      selectedActivities: prev.selectedActivities.includes(id)
-        ? prev.selectedActivities.filter(a => a !== id)
-        : [...prev.selectedActivities, id],
-    }));
+  const handleSwipeTimeChange = useCallback((catId: string, delta: number) => {
+    setState(prev => {
+      const cur = prev.timeAllocations[catId] || 30;
+      const next = Math.max(0, Math.min(240, cur + delta));
+      return { ...prev, timeAllocations: { ...prev.timeAllocations, [catId]: next } };
+    });
   }, []);
 
-  const handleActivitiesDone = useCallback(() => {
-    if (state.selectedActivities.length === 0) return;
+  const handleSwipeLockIn = useCallback(() => {
+    setState(prev => {
+      const cat = SWIPE_CATEGORIES[prev.swipeIndex];
+      const mins = prev.timeAllocations[cat.id] || 30;
+      const activities = mins > 0
+        ? [...new Set([...prev.selectedActivities, cat.id])]
+        : prev.selectedActivities;
+      return { ...prev, swipeIndex: prev.swipeIndex + 1, selectedActivities: activities };
+    });
+  }, []);
+
+  const handleSwipeDone = useCallback(() => {
     nextStep();
-  }, [state.selectedActivities, nextStep]);
+  }, [nextStep]);
 
   const submitOnboarding = useCallback(async () => {
     setState(prev => ({ ...prev, isSubmitting: true, error: null, robotState: 'thinking' }));
@@ -153,6 +263,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         name: state.name, type: state.type, rhythm: state.rhythm,
         nonNegotiables: state.selectedActivities.length > 0 ? state.selectedActivities : ['deep_work'],
         selectedActivities: state.selectedActivities,
+        timeAllocations: state.timeAllocations,
         struggle: state.struggle || 'no_focus_time',
       };
       const res = await fetch('/api/onboarding', {
@@ -232,16 +343,21 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             <h2 className="text-2xl font-bold mb-2 text-white">Nice to meet you, {state.name}!</h2>
             <p className="text-[#94A3B8] mb-8">What best describes you?</p>
             <div className="flex flex-wrap justify-center gap-3 max-w-md">
-              {ROLES.map(({ id, label, icon }) => (
-                <button key={id} onClick={() => selectRole(id as OnboardingSurvey['type'])}
-                  className="px-6 py-3 rounded-full font-medium transition-all hover:scale-105"
-                  style={{
-                    background: state.type === id ? 'linear-gradient(135deg,#38BDF8,#818CF8)' : 'rgba(30,41,59,0.8)',
-                    color: 'white', border: `2px solid ${state.type === id ? '#38BDF8' : '#334155'}`,
-                  }}>
-                  {icon} {label}
-                </button>
-              ))}
+              {ROLES.map(({ id, label, icon }) => {
+                const isSelected = state.type === id;
+                return (
+                  <button key={id} onClick={() => selectRole(id as OnboardingSurvey['type'])}
+                    className="px-6 py-3 rounded-full font-medium transition-all hover:scale-105 min-h-[44px]"
+                    style={{
+                      background: isSelected ? 'linear-gradient(135deg,#38BDF8,#818CF8)' : 'rgba(30,41,59,0.8)',
+                      color: 'white',
+                      border: `2px solid ${isSelected ? '#38BDF8' : '#334155'}`,
+                      boxShadow: isSelected ? '0 0 20px rgba(56,189,248,0.4), 0 4px 16px rgba(0,0,0,0.3)' : 'none',
+                    }}>
+                    {icon} {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         );
