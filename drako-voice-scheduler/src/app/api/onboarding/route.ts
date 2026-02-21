@@ -282,8 +282,8 @@ function generateFallbackSchedule(survey: OnboardingSurvey, today: string): Sche
     events.push({
       id: `evt_${uuid().slice(0, 8)}`,
       title: '🏋️ Exercise',
-      start: '17:00',
-      end: '17:45',
+      start: '16:00',
+      end: '16:45',
       date: today,
       color: COLORS[2],
     });
@@ -292,8 +292,8 @@ function generateFallbackSchedule(survey: OnboardingSurvey, today: string): Sche
   events.push({
     id: `evt_${uuid().slice(0, 8)}`,
     title: '📝 Wrap-up + tomorrow',
-    start: '17:30',
-    end: '18:00',
+    start: '17:15',
+    end: '17:45',
     date: today,
     color: COLORS[5],
   });

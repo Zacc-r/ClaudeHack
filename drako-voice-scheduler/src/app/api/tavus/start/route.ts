@@ -251,8 +251,8 @@ Coaching note: ${coaching}`;
     console.log('[Tavus Start] Conversation started:', conversation.conversation_id);
 
     const r = getRedis();
-    await r.set(`conversation:${conversation.conversation_id}:userId`, userId, 'EX', 7200);
-    console.log('[Tavus Start] Stored userId mapping for conversation:', conversation.conversation_id);
+    await r.set(`conversation:${conversation.conversation_id}:userId`, userId, 'EX', 86400);
+    console.log(`[Tavus Start] Mapped conversation ${conversation.conversation_id} → user ${userId}`);
 
     return NextResponse.json({
       success: true,
