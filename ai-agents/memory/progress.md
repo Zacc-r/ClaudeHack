@@ -3,7 +3,7 @@
 
 ---
 
-## Current Phase: 1 — Infrastructure Setup
+## Current Phase: 2 — User System & Voice Integration
 
 ### Phase 0 — Completed
 - [x] Created project folder structure
@@ -31,8 +31,45 @@
 - [x] Production build verified — all routes compile clean
 - [x] Dev server running on :3000
 
-### Blockers
-- [ ] Tavus API key still needed from Zacc
+### Phase 1 Integration — Verified
+- [x] Tavus API key pulled from Vercel (497076...)
+- [x] All 3 APIs verified: Redis (connected), Claude (key set), Tavus (key valid)
+- [x] Schedule GET/POST tested — events persist in Redis
+- [x] iOS WKWebView shell built and deployed over WiFi
+
+### Phase 2A — User Database & Onboarding (COMPLETE)
+- [x] redis.ts: Added UserProfile, OnboardingSurvey interfaces
+- [x] redis.ts: createUser, getUser, seedScheduleFromSurvey functions
+- [x] /api/onboarding POST — creates user, seeds schedule, sets cookie
+- [x] /api/user GET — returns current user from cookie
+- [x] /api/schedule — updated GET/POST/DELETE to read userId from cookie
+- [x] /api/tavus/tools — reads userId from cookie (was hardcoded 'demo')
+- [x] /api/tavus/start — personalized greeting + user context in persona
+- [x] Full flow tested: onboarding → user creation → schedule seed → cookie session
+- [x] Committed & pushed: `[infra] Phase 2A: multi-user DB, onboarding API, seed schedule, cookie sessions`
+
+### Phase 2B-C — Voice Wiring & Integration (COMPLETE)
+- [x] Tavus persona creation with rich user context (type, rhythm, struggle coaching)
+- [x] Tavus conversation with tools_callback_url for real-time tool calling
+- [x] conversation:userId mapping in Redis (TTL 24h)
+- [x] Webhook handles conversation lifecycle events
+- [x] Per-user SSE streams for real-time schedule updates
+- [x] Robust tool parsing in /api/tavus/tools
+
+### Phase 3 — Onboarding Redesign + UI Polish (COMPLETE)
+- [x] Claude-powered schedule generation (not templates)
+- [x] 5-step conversational onboarding flow (name, role, wake time, priorities, building)
+- [x] DrakoRobot SVG component with animated states (idle, greeting, thinking, listening)
+- [x] QR code sharing page at /share
+- [x] conversation:userId mapping fixed
+- [x] Webhook handles conversation lifecycle events
+- [x] UserProfile schema synced across codebase (type/rhythm/nonNegotiables/struggle)
+- [x] CopilotKit popup rendered + dark themed
+- [x] Space Grotesk font for headings
+- [x] @ai-sdk/anthropic + next-qrcode installed
+- [x] Frosted glass video panel, gradient divider, powered-by badge
+- [x] Dead code removed from redis.ts (old createUser, seedScheduleFromSurvey)
+- [x] Build clean — 0 errors, 13 routes
 
 ---
 
@@ -41,10 +78,8 @@
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0 - Setup | COMPLETE | |
-| 1 - Infrastructure | COMPLETE | Lib clients built, deps installed |
-| 2 - Tavus Voice | NOT STARTED | Needs Tavus API key |
-| 3 - State Machine | NOT STARTED | |
-| 4 - Claude Integration | NOT STARTED | |
-| 5 - Timeline Display | NOT STARTED | |
-| 6 - Wire Together | NOT STARTED | |
-| 7 - Polish + Demo | NOT STARTED | |
+| 1 - Infrastructure | COMPLETE | Lib clients built, deps installed, all APIs verified |
+| 2A - User Database | COMPLETE | Multi-user, onboarding, cookie sessions |
+| 2B-C - Voice Wiring | COMPLETE | Tavus persona, tools callback, SSE, webhook |
+| 3 - Onboarding + UI | COMPLETE | Claude schedule gen, DrakoRobot, CopilotKit popup |
+| 4 - Demo Polish | NOT STARTED | |
