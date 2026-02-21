@@ -75,7 +75,7 @@ function ProgressDots({ current, total }: { current: number; total: number }) {
   if (current >= total) return null;
   
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 z-50">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-50 pb-safe">
       {Array.from({ length: total }).map((_, i) => (
         <div
           key={i}
@@ -107,7 +107,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     robotState: 'greeting',
   });
 
-  const [savedData, setSavedData] = useState<{ user: UserProfile; events: ScheduleEvent[] } | null>(null);
+  const [savedData, setSavedData] = useState<{ user: UserProfile; events: ScheduleEvent[]; persona?: { archetype?: string; archetypeEmoji?: string; drakoGreeting?: string; tagline?: string } } | null>(null);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -167,7 +167,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       const data = await res.json();
 
       if (data.success) {
-        setSavedData({ user: data.user, events: data.events || [] });
+        setSavedData({ user: data.user, events: data.events || [], persona: data.persona || undefined });
         return;
       }
       
@@ -457,17 +457,44 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         }
 
         if (savedData) {
+          const persona = savedData.persona;
           return (
             <div key="step-done" className="animate-fadeInUp flex flex-col items-center text-center px-6">
-              <DrakoRobot size="xl" state="greeting" className="mb-8" />
-              
-              <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-[#10B981] to-[#38BDF8] bg-clip-text text-transparent">
-                Your day is ready, {state.name}!
+              {persona?.archetypeEmoji ? (
+                <div className="text-7xl mb-4 animate-pulse" style={{ filter: 'drop-shadow(0 0 20px rgba(56, 189, 248, 0.4))' }}>
+                  {persona.archetypeEmoji}
+                </div>
+              ) : (
+                <DrakoRobot size="xl" state="greeting" className="mb-6" />
+              )}
+
+              <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-[#38BDF8] to-[#818CF8] bg-clip-text text-transparent">
+                {persona?.archetype || `Your day is ready, ${state.name}!`}
               </h2>
-              <p className="text-[#94A3B8] mb-10 max-w-md">
-                I&apos;ve created a personalized schedule based on your preferences. Let&apos;s fine-tune it together.
+
+              {persona?.drakoGreeting ? (
+                <div className="relative mt-4 mb-8 max-w-sm">
+                  <div
+                    className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45"
+                    style={{ backgroundColor: 'rgba(30, 41, 59, 0.9)', borderLeft: '1px solid #334155', borderTop: '1px solid #334155' }}
+                  />
+                  <div
+                    className="rounded-2xl px-6 py-4"
+                    style={{ backgroundColor: 'rgba(30, 41, 59, 0.9)', border: '1px solid #334155' }}
+                  >
+                    <p className="text-[#E2E8F0] text-lg italic">&ldquo;{persona.drakoGreeting}&rdquo;</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[#94A3B8] mb-8 max-w-md">
+                  I&apos;ve created a personalized schedule based on your preferences.
+                </p>
+              )}
+
+              <p className="text-sm text-[#94A3B8] mb-6">
+                {savedData.events.length} events scheduled for today
               </p>
-              
+
               <button
                 onClick={() => onComplete(savedData.user, savedData.events)}
                 className="px-10 py-5 rounded-2xl font-bold text-xl transition-all hover:scale-105 active:scale-95 animate-glowPulse"
@@ -541,26 +568,28 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center"
+      className="fixed inset-0 overflow-y-auto"
       style={{
         background: 'linear-gradient(135deg, #0F172A 0%, #1E1B4B 50%, #0F172A 100%)',
       }}
     >
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div 
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div
           className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl opacity-20"
           style={{ background: 'radial-gradient(circle, #38BDF8, transparent)' }}
         />
-        <div 
+        <div
           className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl opacity-20"
           style={{ background: 'radial-gradient(circle, #818CF8, transparent)' }}
         />
       </div>
 
-      <div className="relative z-10 w-full max-w-lg px-4 max-h-[90vh] overflow-y-auto">
-        {renderStep()}
+      <div className="relative z-10 min-h-full flex items-center justify-center py-10 px-4">
+        <div className="w-full max-w-lg">
+          {renderStep()}
+        </div>
       </div>
-      
+
       <ProgressDots current={state.step} total={5} />
     </div>
   );

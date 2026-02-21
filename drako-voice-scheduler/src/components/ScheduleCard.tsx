@@ -102,7 +102,7 @@ export function ScheduleCard({ event, isNew, onRemove }: ScheduleCardProps) {
           )}
           
           <button
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-[var(--accent-danger)]/20"
+            className="opacity-0 group-hover:opacity-100 transition-opacity min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[var(--accent-danger)]/20 -mr-2"
             onClick={(e) => {
               e.stopPropagation();
               onRemove(event.id);
@@ -110,7 +110,7 @@ export function ScheduleCard({ event, isNew, onRemove }: ScheduleCardProps) {
             aria-label="Remove event"
           >
             <svg
-              className="w-4 h-4"
+              className="w-5 h-5"
               fill="none"
               stroke="var(--accent-danger)"
               viewBox="0 0 24 24"
