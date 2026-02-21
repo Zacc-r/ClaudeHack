@@ -25,6 +25,13 @@ function formatTime(mins: number): string {
 
 export default function PlayPage() {
   const router = useRouter();
+  // Auth guard — redirect if not onboarded
+  useEffect(() => {
+    fetch('/api/user').then(r => r.json()).then(d => {
+      if (!d.onboarded) router.replace('/onboarding');
+    }).catch(() => router.replace('/onboarding'));
+  }, [router]);
+
   const [cardIndex, setCardIndex] = useState(0);
   const [allocations, setAllocations] = useState<Record<string, number>>(
     Object.fromEntries(ACTIVITIES.map(a => [a.id, a.defaultMins]))

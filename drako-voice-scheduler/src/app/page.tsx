@@ -1,18 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DrakoRobot } from '@/components/DrakoRobot';
 
 export default function Landing() {
   const router = useRouter();
 
-  // If already onboarded, send straight to schedule
-  useEffect(() => {
-    fetch('/api/user').then(r => r.json()).then(d => {
-      if (d.onboarded) router.replace('/schedule');
-    }).catch(() => {});
-  }, [router]);
+  // Landing page always shows — user taps "Build My Day" to start fresh
 
   return (
     <div
@@ -39,7 +33,7 @@ export default function Landing() {
         </p>
 
         <button
-          onClick={() => router.push('/onboarding')}
+          onClick={() => router.push('/onboarding?fresh=1')}
           className="w-full max-w-xs px-8 py-5 rounded-2xl font-bold text-xl text-white transition-all hover:scale-[1.02] active:scale-[0.98] mb-6"
           style={{
             background: 'linear-gradient(135deg, #38BDF8, #818CF8)',

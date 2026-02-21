@@ -71,6 +71,27 @@
 - [x] Dead code removed from redis.ts (old createUser, seedScheduleFromSurvey)
 - [x] Build clean — 0 errors, 13 routes
 
+### Production Deploy & Integration Audit (COMPLETE)
+- [x] Deployed to Vercel: https://drako-voice-scheduler.vercel.app
+- [x] Env vars set: ANTHROPIC_API_KEY, TAVUS_API_KEY, REDIS_URL, NEXT_PUBLIC_APP_URL, TAVUS_REPLICA_ID
+- [x] Bug fix: Tavus tools route — userId lookup from Redis (conversation mapping) instead of cookies
+- [x] Bug fix: Onboarding normalization maps (TYPE_NORMALIZE, RHYTHM_NORMALIZE, NON_NEG_NORMALIZE)
+- [x] Bug fix: Onboarding fallback resilience — Claude failure falls back to template schedule
+- [x] Bug fix: Removed invalid `tools_callback_url` from Tavus conversation creation
+- [x] Bug fix: CSS `:contains()` pseudo-class → `div[data-copilotkit]` attribute selector
+- [x] Bug fix: `showDevConsole="never"` → `showDevConsole={false}` TypeScript fix
+- [x] Bug fix: Deprecated Phoenix-1 replica → Phoenix-3 "Charlie" (`rf4703150052`)
+- [x] Bug fix: Trailing newlines in Vercel env vars (TAVUS_REPLICA_ID, NEXT_PUBLIC_APP_URL)
+- [x] Model switched to claude-haiku-4-5 (cost optimization)
+- [x] All 7 integration tests passing:
+  - Schedule fetch (8 events) ✅
+  - Share API ✅
+  - User API ✅
+  - Tavus Start (conversation URL) ✅
+  - Tavus Tool Call (schedule via conversation mapping) ✅
+  - Persona API ✅
+  - Schedule Stream SSE ✅
+
 ---
 
 ## Phase Checklist
@@ -82,4 +103,5 @@
 | 2A - User Database | COMPLETE | Multi-user, onboarding, cookie sessions |
 | 2B-C - Voice Wiring | COMPLETE | Tavus persona, tools callback, SSE, webhook |
 | 3 - Onboarding + UI | COMPLETE | Claude schedule gen, DrakoRobot, CopilotKit popup |
-| 4 - Demo Polish | NOT STARTED | |
+| 4 - Production Deploy | COMPLETE | All 7 integration tests passing on Vercel |
+| 5 - Demo Polish | NOT STARTED | |
