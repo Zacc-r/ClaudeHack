@@ -1,23 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createPersona, createConversation } from '@/lib/tavus';
 import { getSchedule, getUser } from '@/lib/redis';
 
+const TAVUS_BASE = 'https://tavusapi.com/v2';
+
 const DRAKO_SYSTEM_PROMPT = `You are DRAKO 🐉, a friendly and efficient voice AI scheduling assistant.
-Be warm, energetic, slightly playful. Concise and action-oriented.
-Have opinions about scheduling — suggest better time slots, flag overpacked days.
-Always confirm changes before making them.
-Keep responses under 3 sentences unless asked for detail.`;
+
+PERSONALITY:
+- Warm, energetic, slightly playful
+- Concise and action-oriented — keep responses under 3 sentences
+- Have opinions about scheduling — suggest better time slots, flag overpacked days
+- Use the user's name naturally in conversation
+
+RULES:
+- Always confirm changes before making them: "I'll add [event] at [time], sound good?"
+- After confirmation, call the appropriate function tool
+- When showing the schedule, read it out naturally: "You've got 3 things today..."
+- If there's a conflict, explain it and suggest an alternative
+- IMPORTANT: Use the function tools to actually modify the schedule. Don't just say you'll do it — call the tool.
+
+CONVERSATION STARTERS:
+- If the schedule is empty: "Looks like a blank canvas today! What should we fill it with?"
+- If pre-populated: "I see you've already got some things planned. Want to adjust anything?"`;
 
 const DRAKO_TOOLS = [
   {
     type: 'function',
     function: {
       name: 'get_schedule',
-      description: 'Get the user\'s current schedule for today or a specific date',
+      description: 'Get the user\'s current schedule for a specific date. Call this when the user asks what they have planned or asks about their day.',
       parameters: {
         type: 'object',
         properties: {
-          date: { type: 'string', description: 'Date in YYYY-MM-DD format. Defaults to today.' }
+          date: { type: 'string', description: 'Date in YYYY-MM-DD format. Defaults to today if not specified.' }
         }
       }
     }
@@ -26,14 +40,14 @@ const DRAKO_TOOLS = [
     type: 'function',
     function: {
       name: 'add_event',
-      description: 'Add a new event to the schedule',
+      description: 'Add a new event to the schedule. Call this after the user confirms they want to add something.',
       parameters: {
         type: 'object',
         properties: {
-          title: { type: 'string', description: 'Event title' },
-          start_time: { type: 'string', description: 'Start time in HH:MM 24h format' },
-          end_time: { type: 'string', description: 'End time in HH:MM 24h format' },
-          date: { type: 'string', description: 'Date in YYYY-MM-DD' }
+          title: { type: 'string', description: 'Event title, e.g. "Meeting with Alex"' },
+          start_time: { type: 'string', description: 'Start time in HH:MM 24-hour format, e.g. "14:00"' },
+          end_time: { type: 'string', description: 'End time in HH:MM 24-hour format, e.g. "15:00"' },
+          date: { type: 'string', description: 'Date in YYYY-MM-DD format. Defaults to today.' }
         },
         required: ['title', 'start_time']
       }
@@ -43,14 +57,14 @@ const DRAKO_TOOLS = [
     type: 'function',
     function: {
       name: 'move_event',
-      description: 'Move an existing event to a new time',
+      description: 'Move an existing event to a different time. Use when the user says "move X to Y time".',
       parameters: {
         type: 'object',
         properties: {
-          event_id: { type: 'string' },
-          new_start_time: { type: 'string' },
-          new_end_time: { type: 'string' },
-          new_date: { type: 'string' }
+          event_id: { type: 'string', description: 'The ID of the event to move' },
+          new_start_time: { type: 'string', description: 'New start time in HH:MM 24-hour format' },
+          new_end_time: { type: 'string', description: 'New end time in HH:MM 24-hour format' },
+          new_date: { type: 'string', description: 'New date in YYYY-MM-DD format' }
         },
         required: ['event_id', 'new_start_time']
       }
@@ -60,11 +74,11 @@ const DRAKO_TOOLS = [
     type: 'function',
     function: {
       name: 'remove_event',
-      description: 'Remove an event from the schedule',
+      description: 'Remove an event from the schedule. Use when the user says "cancel X" or "remove X".',
       parameters: {
         type: 'object',
         properties: {
-          event_id: { type: 'string', description: 'The event ID to remove' }
+          event_id: { type: 'string', description: 'The ID of the event to remove' }
         },
         required: ['event_id']
       }
@@ -72,51 +86,130 @@ const DRAKO_TOOLS = [
   }
 ];
 
+async function createTavusPersona(config: {
+  name: string;
+  systemPrompt: string;
+  context: string;
+  tools: typeof DRAKO_TOOLS;
+}) {
+  const res = await fetch(`${TAVUS_BASE}/personas`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.TAVUS_API_KEY!,
+    },
+    body: JSON.stringify({
+      persona_name: config.name,
+      pipeline_mode: 'full',
+      system_prompt: config.systemPrompt,
+      context: config.context,
+      default_replica_id: process.env.TAVUS_REPLICA_ID || 're8e740a42',
+      layers: {
+        llm: {
+          tools: config.tools,
+        },
+        tts: {
+          tts_engine: 'cartesia',
+          tts_emotion_control: true,
+        },
+      },
+    }),
+  });
+  return res.json();
+}
+
+async function createTavusConversation(config: {
+  personaId: string;
+  context: string;
+  callbackUrl: string;
+  toolsCallbackUrl: string;
+}) {
+  const res = await fetch(`${TAVUS_BASE}/conversations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.TAVUS_API_KEY!,
+    },
+    body: JSON.stringify({
+      persona_id: config.personaId,
+      replica_id: process.env.TAVUS_REPLICA_ID || 're8e740a42',
+      conversational_context: config.context,
+      callback_url: config.callbackUrl,
+      properties: {
+        max_call_duration: 600,
+        participant_left_timeout: 30,
+        tools_callback_url: config.toolsCallbackUrl,
+      },
+    }),
+  });
+  return res.json();
+}
+
 export async function POST(req: NextRequest) {
   try {
     const userId = req.cookies.get('drako_user_id')?.value || 'demo';
     const today = new Date().toISOString().split('T')[0];
-    const schedule = await getSchedule(userId, today);
+
     const user = await getUser(userId);
     const userName = user?.name || 'friend';
+
+    const schedule = await getSchedule(userId, today);
+
     const userContext = user
-      ? `User: ${user.name}. Role: ${user.role || 'unknown'}. Work style: ${user.workStyle || 'flexible'}. Priorities: ${user.priorities || 'general productivity'}.`
-      : '';
-    const scheduleContext = `${userContext}\n\n${
-      schedule.length > 0
-        ? `Current schedule for today (${today}): ${schedule.map(e => `${e.start}${e.end ? '-' + e.end : ''} ${e.title}`).join(', ')}`
-        : `No events scheduled for today (${today}). Clean slate!`
-    }`;
+      ? `You're speaking with ${user.name}. They're a ${user.role || 'professional'}. Work style: ${user.workStyle || 'flexible'}. Priorities: ${user.priorities || 'general productivity'}.`
+      : `You're speaking with a new user.`;
 
-    const personalizedPrompt = `${DRAKO_SYSTEM_PROMPT}\nGreet the user as "${userName}". Use their name naturally in conversation.`;
+    const scheduleContext = schedule.length > 0
+      ? `Current schedule for ${today}: ${schedule.map(e => `${e.start}${e.end ? '-' + e.end : ''} "${e.title}" (id: ${e.id})`).join(', ')}`
+      : `No events scheduled for ${today}. Empty day!`;
 
-    const persona = await createPersona({
-      name: 'DRAKO',
-      systemPrompt: personalizedPrompt,
-      context: scheduleContext,
+    const fullContext = `Today is ${today}.\n${userContext}\n\n${scheduleContext}`;
+
+    const appUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+    console.log('[Tavus Start] Creating persona for user:', userId);
+    console.log('[Tavus Start] App URL:', appUrl);
+
+    const persona = await createTavusPersona({
+      name: `DRAKO-${userId.slice(0, 8)}`,
+      systemPrompt: DRAKO_SYSTEM_PROMPT,
+      context: fullContext,
       tools: DRAKO_TOOLS,
     });
 
     if (!persona.persona_id) {
+      console.error('[Tavus Start] Persona creation failed:', persona);
       return NextResponse.json({ error: 'Failed to create persona', details: persona }, { status: 500 });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const conversation = await createConversation({
+    console.log('[Tavus Start] Persona created:', persona.persona_id);
+
+    const conversation = await createTavusConversation({
       personaId: persona.persona_id,
-      context: scheduleContext,
+      context: fullContext,
       callbackUrl: `${appUrl}/api/webhook/tavus`,
+      toolsCallbackUrl: `${appUrl}/api/tavus/tools`,
     });
+
+    if (!conversation.conversation_url) {
+      console.error('[Tavus Start] Conversation creation failed:', conversation);
+      return NextResponse.json({ error: 'Failed to start conversation', details: conversation }, { status: 500 });
+    }
+
+    console.log('[Tavus Start] Conversation started:', conversation.conversation_id);
 
     return NextResponse.json({
       success: true,
       conversationUrl: conversation.conversation_url,
       conversationId: conversation.conversation_id,
       personaId: persona.persona_id,
+      userName,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Start conversation error:', error);
+    console.error('[Tavus Start] Error:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
