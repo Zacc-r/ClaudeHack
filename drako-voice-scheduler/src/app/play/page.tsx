@@ -367,7 +367,7 @@ export default function PlayPage() {
       const timeSlots: Record<string, { start: string; end: string; label: string; emoji: string; days: string[] }> = {};
       slots.forEach(s => { timeSlots[s.id] = { start: toHHMM(s.startMinutes), end: toHHMM(s.startMinutes + s.durationMinutes), label: s.label, emoji: s.emoji, days: s.days }; });
       await fetch('/api/user', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timeSlots }) });
-      await fetch('/api/schedule/rebuild', { method: 'POST' });
+      await fetch('/api/schedule/rebuild?week=true', { method: 'POST' });
       if (typeof window !== 'undefined') {
         const raw = sessionStorage.getItem('drako_user');
         if (raw) sessionStorage.setItem('drako_user', JSON.stringify({ ...JSON.parse(raw), timeSlots }));
