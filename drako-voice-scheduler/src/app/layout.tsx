@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk } from 'next/font/google';
 import { Geist_Mono } from 'next/font/google';
 import { CopilotKit } from '@copilotkit/react-core';
 import '@copilotkit/react-ui/styles.css';
+import { PWAUpdater } from '@/components/PWAUpdater';
 import './globals.css';
 
 const inter = Inter({
@@ -61,6 +62,7 @@ export default function RootLayout({
       >
         <CopilotKit runtimeUrl="/api/copilotkit" showDevConsole={false}>
           {children}
+          <PWAUpdater />
         </CopilotKit>
       </body>
     </html>
