@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClaude } from '@/lib/claude';
-import { addEvent, type ScheduleEvent } from '@/lib/redis';
+import { addEvent, getRedis, type ScheduleEvent } from '@/lib/redis';
 import { v4 as uuid } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -11,6 +11,14 @@ export async function POST(req: NextRequest) {
   if (body.event_type === 'application.transcription_ready') {
     const transcript = body.properties?.transcript;
     if (!transcript) return NextResponse.json({ ok: true });
+
+    const r = getRedis();
+    const conversationId = body.conversation_id;
+    const userId = conversationId 
+      ? (await r.get(`conversation:${conversationId}:userId`)) || 'demo'
+      : 'demo';
+    
+    console.log(`[Tavus Webhook] Processing transcript for user: ${userId}`);
 
     try {
       const claude = getClaude();
@@ -30,25 +38,36 @@ ${JSON.stringify(transcript)}`
       });
 
       const text = extraction.content[0].type === 'text' ? extraction.content[0].text : '[]';
-      const actions = JSON.parse(text);
+      
+      let actions = [];
+      try {
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        actions = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+      } catch {
+        console.error('[Tavus Webhook] Failed to parse actions:', text);
+        actions = [];
+      }
 
+      const colors = ['#6C5CE7', '#10B981', '#F59E0B', '#3B82F6', '#EC4899'];
       for (const action of actions) {
         if (action.action === 'add') {
           const event: ScheduleEvent = {
             id: `evt_${uuid().slice(0, 8)}`,
             title: action.title,
             start: action.start,
-            end: action.end || null,
+            end: action.end || undefined,
             date: action.date || new Date().toISOString().split('T')[0],
+            color: colors[Math.floor(Math.random() * colors.length)],
           };
-          await addEvent('demo', event);
+          await addEvent(userId, event);
+          console.log(`[Tavus Webhook] Added event from transcript: ${event.title}`);
         }
       }
 
-      return NextResponse.json({ processed: actions.length });
+      return NextResponse.json({ processed: actions.length, userId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Transcript processing error:', error);
+      console.error('[Tavus Webhook] Transcript processing error:', error);
       return NextResponse.json({ error: message }, { status: 500 });
     }
   }

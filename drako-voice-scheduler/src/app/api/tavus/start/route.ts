@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSchedule, getUser } from '@/lib/redis';
+import { getSchedule, getUser, getRedis } from '@/lib/redis';
 
 const TAVUS_BASE = 'https://tavusapi.com/v2';
 
@@ -199,6 +199,10 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('[Tavus Start] Conversation started:', conversation.conversation_id);
+
+    const r = getRedis();
+    await r.set(`conversation:${conversation.conversation_id}:userId`, userId, 'EX', 7200);
+    console.log('[Tavus Start] Stored userId mapping for conversation:', conversation.conversation_id);
 
     return NextResponse.json({
       success: true,

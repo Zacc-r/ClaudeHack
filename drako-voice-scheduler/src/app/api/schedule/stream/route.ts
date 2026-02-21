@@ -21,13 +21,14 @@ export async function GET(req: NextRequest) {
       }, 30000);
 
       subscriber.subscribe('schedule:updates');
+      subscriber.subscribe(`schedule:updates:${userId}`);
 
       subscriber.on('message', (channel: string, message: string) => {
         try {
           const update = JSON.parse(message);
           
           if (update.event) {
-            const eventUserId = update.event.userId || extractUserIdFromEventId(update.event.id);
+            const eventUserId = update.userId || update.event.userId;
             if (eventUserId && eventUserId !== userId && eventUserId !== 'demo') {
               return;
             }
@@ -43,6 +44,7 @@ export async function GET(req: NextRequest) {
         console.log('[SSE Stream] Connection closed for user:', userId);
         clearInterval(heartbeat);
         subscriber.unsubscribe('schedule:updates');
+        subscriber.unsubscribe(`schedule:updates:${userId}`);
         subscriber.disconnect();
       });
     },
@@ -56,8 +58,4 @@ export async function GET(req: NextRequest) {
       'X-Accel-Buffering': 'no',
     },
   });
-}
-
-function extractUserIdFromEventId(eventId: string): string | null {
-  return null;
 }

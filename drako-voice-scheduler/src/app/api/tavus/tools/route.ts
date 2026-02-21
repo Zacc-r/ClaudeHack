@@ -5,38 +5,56 @@ import { v4 as uuid } from 'uuid';
 
 interface TavusToolCall {
   function_name?: string;
-  arguments?: Record<string, unknown>;
+  name?: string;
+  arguments?: string | Record<string, unknown>;
   tool_calls?: Array<{
-    function: {
+    function?: {
       name: string;
       arguments: string | Record<string, unknown>;
     };
+    name?: string;
+    arguments?: string | Record<string, unknown>;
   }>;
   conversation_id?: string;
 }
 
+function parseArgs(args: unknown): Record<string, unknown> {
+  if (!args) return {};
+  if (typeof args === 'string') {
+    try {
+      return JSON.parse(args);
+    } catch {
+      return {};
+    }
+  }
+  return args as Record<string, unknown>;
+}
+
 function parseToolCall(body: TavusToolCall): { functionName: string; args: Record<string, unknown> } | null {
-  if (body.function_name && body.arguments) {
+  if (body.function_name) {
     return {
       functionName: body.function_name,
-      args: body.arguments,
+      args: parseArgs(body.arguments),
+    };
+  }
+
+  if (body.name) {
+    return {
+      functionName: body.name,
+      args: parseArgs(body.arguments),
     };
   }
 
   if (body.tool_calls && body.tool_calls.length > 0) {
     const call = body.tool_calls[0];
-    let args = call.function.arguments;
-    if (typeof args === 'string') {
-      try {
-        args = JSON.parse(args);
-      } catch {
-        args = {};
-      }
+    const funcName = call.function?.name || call.name;
+    const funcArgs = call.function?.arguments || call.arguments;
+    if (funcName) {
+      return {
+        functionName: funcName,
+        args: parseArgs(funcArgs),
+      };
     }
-    return {
-      functionName: call.function.name,
-      args: args as Record<string, unknown>,
-    };
   }
 
   return null;
