@@ -197,11 +197,19 @@ export async function POST(req: NextRequest) {
       const userRhythm = userData.rhythm as string | undefined;
       const userStruggle = userData.struggle as string | undefined;
       const userNonNegotiables = userData.nonNegotiables as string[] | undefined;
+      const userTimeAllocations = userData.timeAllocations as Record<string, number> | undefined;
       
       const typeDesc = userType ? typeDescriptions[userType] || userType : 'a professional';
       const rhythmDesc = userRhythm ? rhythmDescriptions[userRhythm] || userRhythm : 'flexible';
       const coaching = userStruggle ? struggleCoaching[userStruggle] : 'Help them stay organized.';
       const prioritiesText = userNonNegotiables?.map(n => nonNegotiableLabels[n] || n).join(', ') || 'general productivity';
+
+      const timeAllocText = userTimeAllocations
+        ? `\nTime budget from swipe game: ${Object.entries(userTimeAllocations)
+            .filter(([, mins]) => mins > 0)
+            .map(([activity, mins]) => `${activity}: ${mins}min`)
+            .join(', ')}`
+        : '';
 
       userContext = userPersona ? `Speaking with: ${user.name}
 Persona archetype: ${userPersona.archetype} ${userPersona.archetypeEmoji}
@@ -209,13 +217,13 @@ Tagline: ${userPersona.tagline}
 Peak focus window: ${userPersona.peakWindow}
 Coaching tone: ${userPersona.coachingTone}
 Key schedule protections: ${(userPersona.keyProtections || []).join('; ')}
-Watch outs: ${(userPersona.watchOuts || []).join('; ')}
+Watch outs: ${(userPersona.watchOuts || []).join('; ')}${timeAllocText}
 Opening line to use: "${userPersona.drakoGreeting}"` :
 `Speaking with: ${user.name}
 They are: ${typeDesc}
 Their brain turns on: ${rhythmDesc}
 Priorities: ${prioritiesText}
-Coaching note: ${coaching}`;
+Coaching note: ${coaching}${timeAllocText}`;
     } else {
       userContext = `You're speaking with a new user.`;
     }
