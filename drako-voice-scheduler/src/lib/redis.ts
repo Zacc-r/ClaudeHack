@@ -5,11 +5,10 @@ const getRedisClient = () => {
   const isTLS = url.startsWith('rediss://');
   const client = new Redis(url, {
     maxRetriesPerRequest: 3,
-    connectTimeout: 5000,
-    enableOfflineQueue: false,
+    connectTimeout: 8000,
     tls: isTLS ? { rejectUnauthorized: false } : undefined,
     retryStrategy(times) {
-      if (times > 3) return null; // stop retrying in serverless
+      if (times > 3) return null;
       return Math.min(times * 100, 1000);
     },
   });
