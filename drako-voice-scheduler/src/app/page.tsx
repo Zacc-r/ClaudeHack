@@ -5,7 +5,8 @@ import { useCopilotReadable, useCopilotAction } from '@copilotkit/react-core';
 import { Header } from '@/components/Header';
 import { VideoCall } from '@/components/VideoCall';
 import { ScheduleView } from '@/components/ScheduleView';
-import { OnboardingFlow, type UserProfile } from '@/components/OnboardingFlow';
+import { OnboardingFlow } from '@/components/OnboardingFlow';
+import type { UserProfile } from '@/components/OnboardingFlow';
 import type { ScheduleEvent } from '@/components/ScheduleCard';
 
 function timeToMinutes(time: string): number {

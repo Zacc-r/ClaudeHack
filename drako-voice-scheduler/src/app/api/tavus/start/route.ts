@@ -155,9 +155,58 @@ export async function POST(req: NextRequest) {
 
     const schedule = await getSchedule(userId, today);
 
-    const userContext = user
-      ? `You're speaking with ${user.name}. They're a ${user.role || 'professional'}. Work style: ${user.workStyle || 'flexible'}. Priorities: ${user.priorities || 'general productivity'}.`
-      : `You're speaking with a new user.`;
+    const typeDescriptions: Record<string, string> = {
+      builder: 'someone who codes, designs, or creates things',
+      operator: 'someone who manages people, projects, or processes',
+      learner: 'someone who is studying or upskilling',
+      hustler: 'someone building a company or side project',
+    };
+
+    const rhythmDescriptions: Record<string, string> = {
+      early_bird: 'an early bird who starts at 5-7 AM',
+      morning: 'a morning person who starts at 7-9 AM',
+      mid_morning: 'someone who gets going around 9-11 AM',
+      late_starter: 'a late starter who gets going around 11 AM or later',
+    };
+
+    const struggleDescriptions: Record<string, string> = {
+      too_many_meetings: 'having too many meetings - so protect their focus time',
+      context_switching: 'context switching - so help them batch similar tasks',
+      no_focus_time: 'never having enough focus time - so guard their deep work blocks',
+      no_boundaries: 'poor work-life boundaries - so remind them to wrap up on time',
+    };
+
+    const nonNegotiableLabels: Record<string, string> = {
+      deep_focus: 'deep focus time',
+      meetings: 'meetings and calls',
+      exercise: 'exercise',
+      meals: 'proper meals',
+      learning: 'learning',
+      breaks: 'breaks',
+      creative: 'creative time',
+      family: 'family/social time',
+    };
+
+    let userContext: string;
+    if (user) {
+      const userData = user as unknown as Record<string, unknown>;
+      const userType = userData.type as string | undefined;
+      const userRhythm = userData.rhythm as string | undefined;
+      const userStruggle = userData.struggle as string | undefined;
+      const userNonNegotiables = userData.nonNegotiables as string[] | undefined;
+      
+      const typeDesc = userType ? typeDescriptions[userType] || userType : 'a professional';
+      const rhythmDesc = userRhythm ? rhythmDescriptions[userRhythm] || userRhythm : 'flexible';
+      const struggleDesc = userStruggle ? struggleDescriptions[userStruggle] : null;
+      const prioritiesText = userNonNegotiables?.map(n => nonNegotiableLabels[n] || n).join(', ') || 'general productivity';
+
+      userContext = `You're talking with ${user.name}. They're ${typeDesc}, and they're ${rhythmDesc}.
+Their priorities are: ${prioritiesText}.${struggleDesc ? `
+They struggle with ${struggleDesc}.` : ''}
+Protect their top priorities. If they try to schedule over them, gently push back.`;
+    } else {
+      userContext = `You're speaking with a new user.`;
+    }
 
     const scheduleContext = schedule.length > 0
       ? `Current schedule for ${today}: ${schedule.map(e => `${e.start}${e.end ? '-' + e.end : ''} "${e.title}" (id: ${e.id})`).join(', ')}`
