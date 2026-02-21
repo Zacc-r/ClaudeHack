@@ -60,6 +60,13 @@ const CATEGORIES = [
   { id: 'entertainment', label: 'Entertainment', emoji: '🎮', color: '#F97316' },
 ];
 
+const STRUGGLES = [
+  { id: 'too_many_meetings', emoji: '😵', label: 'Too many meetings' },
+  { id: 'context_switching', emoji: '🔀', label: 'Context switching' },
+  { id: 'no_focus_time', emoji: '⏰', label: 'Never enough focus time' },
+  { id: 'no_boundaries', emoji: '🫠', label: 'No work-life boundaries' },
+];
+
 const BUILDING_STEPS = [
   'Analyzing your rhythm...',
   'Protecting focus blocks...',
@@ -150,7 +157,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         type: state.type,
         rhythm: state.rhythm,
         nonNegotiables: state.nonNegotiables,
-        struggle: 'no_focus_time',
+        struggle: state.struggle || 'no_focus_time',
       };
 
       const res = await fetch('/api/onboarding', {
@@ -187,16 +194,23 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const handleCategoriesNext = useCallback(() => {
     if (state.nonNegotiables.length > 0) {
       nextStep();
-      submitOnboarding();
     }
-  }, [state.nonNegotiables.length, nextStep, submitOnboarding]);
+  }, [state.nonNegotiables.length, nextStep]);
+
+  const selectStruggle = useCallback((id: OnboardingSurvey['struggle']) => {
+    setState(prev => ({ ...prev, struggle: id }));
+    setTimeout(() => {
+      nextStep();
+      submitOnboarding();
+    }, 400);
+  }, [nextStep, submitOnboarding]);
 
   const handleRetry = useCallback(() => {
-    setState(prev => ({ ...prev, error: null, step: 3, robotState: 'idle' }));
+    setState(prev => ({ ...prev, error: null, step: 4, robotState: 'idle' }));
   }, []);
 
   useEffect(() => {
-    if (state.step === 4 && !savedData && !state.error) {
+    if (state.step === 5 && !savedData && !state.error) {
       const interval = setInterval(() => {
         setState(prev => {
           if (prev.buildingStep < BUILDING_STEPS.length - 1) {
@@ -380,12 +394,48 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 boxShadow: state.nonNegotiables.length > 0 ? '0 0 40px rgba(56, 189, 248, 0.3)' : 'none',
               }}
             >
-              Build My Schedule →
+              Continue →
             </button>
           </div>
         );
 
       case 4:
+        return (
+          <div key="step-4" className="animate-fadeInUp flex flex-col items-center text-center px-6">
+            <DrakoRobot size="lg" state={state.robotState} className="mb-6" />
+            
+            <h2 className="text-2xl font-bold mb-2 text-white">
+              What&apos;s your biggest struggle?
+            </h2>
+            <p className="text-[#94A3B8] mb-8">I&apos;ll help you tackle it</p>
+
+            <div className="grid grid-cols-2 gap-4 w-full max-w-md">
+              {STRUGGLES.map(({ id, emoji, label }) => {
+                const isSelected = state.struggle === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => selectStruggle(id as OnboardingSurvey['struggle'])}
+                    className="p-5 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] text-center"
+                    style={{
+                      background: isSelected 
+                        ? 'linear-gradient(135deg, #38BDF8, #818CF8)' 
+                        : 'rgba(30, 41, 59, 0.8)',
+                      color: 'white',
+                      border: `2px solid ${isSelected ? '#38BDF8' : '#334155'}`,
+                      boxShadow: isSelected ? '0 0 20px rgba(56, 189, 248, 0.4)' : 'none',
+                    }}
+                  >
+                    <span className="text-3xl block mb-2">{emoji}</span>
+                    <span className="font-medium text-sm">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+
+      case 5:
         if (state.error) {
           return (
             <div key="step-error" className="animate-fadeInUp flex flex-col items-center text-center px-6">
@@ -515,7 +565,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         {renderStep()}
       </div>
       
-      <ProgressDots current={state.step} total={4} />
+      <ProgressDots current={state.step} total={5} />
     </div>
   );
 }
