@@ -207,15 +207,24 @@ export default function PlayPage() {
       slots.forEach(s => {
         timeSlots[s.id] = { start: toHHMM(s.startMinutes), end: toHHMM(s.startMinutes + s.durationMinutes), label: s.label, emoji: s.emoji };
       });
+
+      // 1. Save timeSlots to user profile
       await fetch('/api/user', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ timeSlots }),
       });
+
+      // 2. Rebuild schedule using these exact time slots
+      await fetch('/api/schedule/rebuild', { method: 'POST' });
+
+      // 3. Persist to sessionStorage
       if (typeof window !== 'undefined') {
         const raw = sessionStorage.getItem('drako_user');
         if (raw) sessionStorage.setItem('drako_user', JSON.stringify({ ...JSON.parse(raw), timeSlots }));
       }
-    } catch { /* non-blocking */ }
+    } catch (e) {
+      console.error('[Play] finish error:', e);
+    }
     router.push('/schedule');
   }, [slots, router]);
 
