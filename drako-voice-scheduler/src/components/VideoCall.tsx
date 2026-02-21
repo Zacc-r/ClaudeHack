@@ -10,6 +10,7 @@ interface VideoCallProps {
   connectionError?: string | null;
   speaker: 'drako' | 'user' | 'idle';
   userName?: string;
+  drakoGreeting?: string;
   onStartConversation: () => void;
   onEndConversation?: () => void;
 }
@@ -38,6 +39,7 @@ export function VideoCall({
   connectionError,
   speaker,
   userName,
+  drakoGreeting,
   onStartConversation,
   onEndConversation,
 }: VideoCallProps) {
@@ -109,15 +111,34 @@ export function VideoCall({
             </div>
           </div>
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-8 p-8">
-            <DrakoRobot size="xl" state="idle" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 p-6">
+            {/* DRAKO greeting speech bubble */}
+            {drakoGreeting && (
+              <div className="relative w-full max-w-xs">
+                <div
+                  className="rounded-2xl px-4 py-3 text-sm text-center italic"
+                  style={{
+                    background: 'rgba(56,189,248,0.08)',
+                    border: '1px solid rgba(56,189,248,0.25)',
+                    color: '#CBD5E1',
+                  }}
+                >
+                  &ldquo;{drakoGreeting}&rdquo;
+                </div>
+                {/* Speech bubble tail pointing down to robot */}
+                <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-4 h-4 rotate-45"
+                  style={{ background: 'rgba(56,189,248,0.08)', borderRight: '1px solid rgba(56,189,248,0.25)', borderBottom: '1px solid rgba(56,189,248,0.25)' }} />
+              </div>
+            )}
+
+            <DrakoRobot size="xl" state="greeting" />
 
             <div className="text-center">
-              <p className="text-xl font-semibold text-white mb-2">
+              <p className="text-xl font-semibold text-white mb-1">
                 {userName ? `Hey ${userName}!` : 'Hey there!'}
               </p>
-              <p className="text-[#94A3B8]">
-                Ready to plan your perfect day?
+              <p className="text-sm text-[#94A3B8]">
+                Tap below to talk — I&apos;ll adjust your day
               </p>
             </div>
 
@@ -125,17 +146,12 @@ export function VideoCall({
             <div className="relative">
               <div
                 className="absolute inset-0 rounded-2xl"
-                style={{
-                  border: '2px solid rgba(56,189,248,0.4)',
-                  animation: 'pulseRing 2s ease-out infinite',
-                }}
+                style={{ border: '2px solid rgba(56,189,248,0.4)', animation: 'pulseRing 2s ease-out infinite' }}
               />
               <button
                 onClick={onStartConversation}
                 className="relative px-10 py-5 rounded-2xl text-lg font-bold text-white transition-all hover:scale-105 active:scale-95 btn-glow"
-                style={{
-                  background: 'linear-gradient(135deg, #38BDF8, #818CF8)',
-                }}
+                style={{ background: 'linear-gradient(135deg, #38BDF8, #818CF8)' }}
               >
                 🎙️ Start Talking to DRAKO
               </button>

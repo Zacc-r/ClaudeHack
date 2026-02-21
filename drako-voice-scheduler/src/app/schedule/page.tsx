@@ -30,6 +30,8 @@ export default function SchedulePage() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'live' | 'reconnecting'>('reconnecting');
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -88,6 +90,7 @@ export default function SchedulePage() {
 
       es.onopen = () => {
         setStatus('ready');
+        setSyncStatus('live');
         reconnectAttempts = 0;
       };
 
@@ -108,6 +111,8 @@ export default function SchedulePage() {
             });
             setNewEventIds(prev => new Set([...prev, update.event.id]));
             setTimeout(() => setNewEventIds(prev => { const n = new Set(prev); n.delete(update.event.id); return n; }), 800);
+            setToast(`🎙️ DRAKO added: ${update.event.title}`);
+            setTimeout(() => setToast(null), 3000);
           }
           if (update.type === 'remove' && update.event) {
             setEvents(prev => prev.filter(ev => ev.id !== update.event.id));
@@ -119,6 +124,8 @@ export default function SchedulePage() {
             });
             setNewEventIds(prev => new Set([...prev, update.event.id]));
             setTimeout(() => setNewEventIds(prev => { const n = new Set(prev); n.delete(update.event.id); return n; }), 800);
+            setToast(`🔀 DRAKO moved: ${update.event.title}`);
+            setTimeout(() => setToast(null), 3000);
           }
         } catch { /* heartbeat or invalid JSON */ }
       };
@@ -126,6 +133,7 @@ export default function SchedulePage() {
       es.onerror = () => {
         es?.close();
         setStatus('error');
+        setSyncStatus('reconnecting');
         reconnectAttempts++;
         const delay = Math.min(3000 * Math.pow(2, reconnectAttempts - 1), MAX_RECONNECT_DELAY);
         reconnectTimer = setTimeout(connect, delay);
@@ -248,15 +256,37 @@ export default function SchedulePage() {
     >
       <Header status={status} userName={user.name} onReset={resetDemo} />
 
-      {/* Persona strip */}
-      {persona && (
-        <div className="flex items-center gap-3 px-4 py-2 border-b"
-          style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-          <span className="text-xl">{persona.archetypeEmoji}</span>
-          <div>
-            <span className="text-sm font-semibold text-white">{persona.archetype}</span>
-            <span className="text-xs text-[#64748B] ml-2">{persona.tagline}</span>
+      {/* Persona strip + live sync badge */}
+      <div className="flex items-center justify-between px-4 py-2 border-b"
+        style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+        {persona ? (
+          <div className="flex items-center gap-3">
+            <span className="text-xl">{persona.archetypeEmoji}</span>
+            <div>
+              <span className="text-sm font-semibold text-white">{persona.archetype}</span>
+              <span className="text-xs text-[#64748B] ml-2">{persona.tagline}</span>
+            </div>
           </div>
+        ) : <div />}
+        {/* Live sync indicator */}
+        <div className="flex items-center gap-1.5 text-xs font-medium"
+          style={{ color: syncStatus === 'live' ? '#10B981' : '#F59E0B' }}>
+          <span className="w-2 h-2 rounded-full animate-pulse"
+            style={{ backgroundColor: syncStatus === 'live' ? '#10B981' : '#F59E0B' }} />
+          {syncStatus === 'live' ? 'Live sync' : 'Connecting...'}
+        </div>
+      </div>
+
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl text-sm font-semibold text-white shadow-2xl"
+          style={{
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.9), rgba(56,189,248,0.9))',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            animation: 'fadeInUp 0.3s ease',
+          }}>
+          {toast}
         </div>
       )}
 
@@ -270,6 +300,7 @@ export default function SchedulePage() {
             connectionError={connectionError}
             speaker={speaker}
             userName={user.name}
+            drakoGreeting={persona?.drakoGreeting}
             onStartConversation={startConversation}
             onEndConversation={endConversation}
           />
