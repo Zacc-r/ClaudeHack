@@ -23,23 +23,23 @@ export function Header({ status, userName, onReset }: HeaderProps) {
 
   return (
     <header
-      className="flex items-center justify-between px-6 py-4 border-b"
+      className="flex items-center justify-between px-4 lg:px-6 py-4 border-b"
       style={{
         backgroundColor: 'var(--bg-secondary)',
         borderColor: 'var(--border)',
       }}
     >
       <div className="flex items-center gap-3">
-        <span className="text-3xl">🐉</span>
+        <span className="text-2xl lg:text-3xl">🐉</span>
         <div>
           <h1
-            className="text-xl font-bold tracking-tight"
+            className="text-lg lg:text-xl font-bold tracking-tight"
             style={{ color: 'var(--text-primary)' }}
           >
             DRAKO
           </h1>
           <p
-            className="text-sm"
+            className="text-xs lg:text-sm hidden sm:block"
             style={{ color: 'var(--text-secondary)' }}
           >
             Voice Schedule Builder
@@ -47,9 +47,9 @@ export function Header({ status, userName, onReset }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3 lg:gap-6">
         <span
-          className="text-sm font-mono-time hidden sm:block"
+          className="text-xs lg:text-sm font-mono-time hidden md:block"
           style={{ color: 'var(--text-secondary)' }}
         >
           {today}
@@ -57,7 +57,7 @@ export function Header({ status, userName, onReset }: HeaderProps) {
 
         {userName && (
           <span
-            className="text-sm font-medium"
+            className="text-sm font-medium hidden sm:block"
             style={{ color: 'var(--text-primary)' }}
           >
             Hey, {userName}!
@@ -79,11 +79,14 @@ export function Header({ status, userName, onReset }: HeaderProps) {
         {onReset && (
           <button
             onClick={onReset}
-            className="text-xs px-2 py-1 rounded transition-colors hover:bg-[var(--bg-tertiary)]"
-            style={{ color: 'var(--text-muted)' }}
-            title="Reset onboarding (demo)"
+            className="text-xs px-3 py-1 rounded-full transition-all hover:bg-[var(--bg-tertiary)]"
+            style={{
+              color: 'var(--text-muted)',
+              border: '1px solid var(--border)',
+            }}
+            title="Reset demo"
           >
-            Reset
+            Reset Demo
           </button>
         )}
       </div>

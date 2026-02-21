@@ -32,8 +32,12 @@ export default function Home() {
           const data = await res.json();
           if (data.onboarded && data.user) {
             setUser(data.user);
-            if (data.events) {
-              setEvents(data.events);
+            const scheduleRes = await fetch(`/api/schedule?date=${new Date().toISOString().split('T')[0]}`);
+            if (scheduleRes.ok) {
+              const scheduleData = await scheduleRes.json();
+              if (scheduleData.events) {
+                setEvents(scheduleData.events);
+              }
             }
           }
         }
@@ -49,25 +53,6 @@ export default function Home() {
   useEffect(() => {
     if (!user) return;
 
-    const fetchSchedule = async () => {
-      try {
-        const res = await fetch('/api/schedule?date=' + new Date().toISOString().split('T')[0]);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.events && data.events.length > 0) {
-            setEvents(data.events);
-          }
-        }
-      } catch {
-        // Keep existing events
-      }
-    };
-    fetchSchedule();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-
     const es = new EventSource('/api/schedule/stream');
 
     es.onopen = () => {
@@ -77,12 +62,14 @@ export default function Home() {
     es.onmessage = (e) => {
       try {
         const update = JSON.parse(e.data);
-        if (update.type === 'add') {
-          setEvents(prev =>
-            [...prev, update.event].sort((a, b) =>
-              timeToMinutes(a.start) - timeToMinutes(b.start)
-            )
-          );
+
+        if (update.type === 'add' && update.event) {
+          setEvents(prev => {
+            if (prev.some(ev => ev.id === update.event.id)) return prev;
+            const next = [...prev, update.event];
+            next.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+            return next;
+          });
           setNewEventIds(prev => new Set([...prev, update.event.id]));
           setTimeout(() => {
             setNewEventIds(prev => {
@@ -90,17 +77,37 @@ export default function Home() {
               n.delete(update.event.id);
               return n;
             });
-          }, 600);
-        } else if (update.type === 'remove') {
+          }, 800);
+        }
+
+        if (update.type === 'remove' && update.event) {
           setEvents(prev => prev.filter(ev => ev.id !== update.event.id));
         }
+
+        if (update.type === 'move' && update.event) {
+          setEvents(prev => {
+            const filtered = prev.filter(ev => ev.id !== update.event.id);
+            const next = [...filtered, update.event];
+            next.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+            return next;
+          });
+          setNewEventIds(prev => new Set([...prev, update.event.id]));
+          setTimeout(() => {
+            setNewEventIds(prev => {
+              const n = new Set(prev);
+              n.delete(update.event.id);
+              return n;
+            });
+          }, 800);
+        }
       } catch {
-        // Ignore parse errors (heartbeats)
+        // Ignore heartbeat or malformed
       }
     };
 
     es.onerror = () => {
       setStatus('error');
+      console.warn('SSE connection lost, will reconnect...');
     };
 
     return () => es.close();
@@ -111,17 +118,19 @@ export default function Home() {
     try {
       const res = await fetch('/api/tavus/start', { method: 'POST' });
       const data = await res.json();
-      if (data.conversationUrl) {
+      if (data.success && data.conversationUrl) {
         setConversationUrl(data.conversationUrl);
         setIsActive(true);
         setSpeaker('drako');
         setStatus('active');
       } else {
-        console.error('No conversation URL:', data);
+        console.error('Failed to start conversation:', data);
+        alert(`Failed to start: ${data.error || 'Unknown error'}`);
         setStatus('error');
       }
     } catch (err) {
       console.error('Start conversation error:', err);
+      alert(`Connection error: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setStatus('error');
     } finally {
       setIsConnecting(false);
@@ -158,7 +167,7 @@ export default function Home() {
     setEvents(newEvents);
   }, []);
 
-  const resetUser = useCallback(() => {
+  const resetDemo = useCallback(() => {
     document.cookie = 'drako_user_id=; path=/; max-age=0';
     setUser(null);
     setEvents([]);
@@ -197,14 +206,9 @@ export default function Home() {
     return (
       <div
         className="flex min-h-screen items-center justify-center"
-        style={{ backgroundColor: 'var(--bg-primary)' }}
+        style={{ background: 'var(--bg-primary, #0A0A0F)' }}
       >
-        <span
-          className="text-4xl animate-eyePulse"
-          style={{ color: 'var(--accent-primary)' }}
-        >
-          🐉
-        </span>
+        <div className="text-4xl animate-pulse">🐉</div>
       </div>
     );
   }
@@ -214,19 +218,19 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      <Header status={status} userName={user.name} onReset={resetUser} />
+    <div className="flex flex-col min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      <Header status={status} userName={user.name} onReset={resetDemo} />
 
-      <main className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        <section className="w-full md:w-1/2 p-6 flex flex-col">
+      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        <section className="w-full lg:w-1/2 p-4 lg:p-6 flex flex-col">
           <VideoCall
             conversationUrl={conversationUrl}
             isActive={isActive}
             isConnecting={isConnecting}
             speaker={speaker}
             userName={user.name}
-            onStart={startConversation}
-            onEnd={endConversation}
+            onStartConversation={startConversation}
+            onEndConversation={endConversation}
           />
 
           {conversationUrl && (
@@ -246,8 +250,8 @@ export default function Home() {
         </section>
 
         <section
-          className="w-full md:w-1/2 flex flex-col border-l"
-          style={{ borderColor: 'var(--border)' }}
+          className="w-full lg:w-1/2 flex flex-col border-t lg:border-t-0 lg:border-l overflow-y-auto"
+          style={{ borderColor: 'var(--border)', maxHeight: '100vh' }}
         >
           <ScheduleView
             events={events}

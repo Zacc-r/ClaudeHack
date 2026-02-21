@@ -23,11 +23,12 @@ interface OnboardingState {
   wakeUpTime: string;
   priorities: string[];
   isSubmitting: boolean;
-  direction: 'forward' | 'backward';
+  error: string | null;
+  success: boolean;
 }
 
 const ROLES = [
-  { id: 'engineer', label: 'Engineer', emoji: '👨‍💻' },
+  { id: 'engineer', label: 'Engineer', emoji: '💻' },
   { id: 'designer', label: 'Designer', emoji: '🎨' },
   { id: 'pm', label: 'PM', emoji: '📋' },
   { id: 'founder', label: 'Founder', emoji: '🚀' },
@@ -36,50 +37,44 @@ const ROLES = [
 ];
 
 const WAKE_TIMES = [
-  { time: '06:00', label: '6:00 AM', emoji: '🌅' },
-  { time: '07:00', label: '7:00 AM', emoji: '☀️' },
-  { time: '08:00', label: '8:00 AM', emoji: '🌤️' },
-  { time: '09:00', label: '9:00 AM', emoji: '😴' },
-  { time: '10:00', label: '10:00 AM', emoji: '🦉' },
+  { time: '06:00', label: '6:00', emoji: '🌅' },
+  { time: '07:00', label: '7:00', emoji: '☀️' },
+  { time: '08:00', label: '8:00', emoji: '🌤️' },
+  { time: '09:00', label: '9:00', emoji: '😴' },
+  { time: '10:00', label: '10:00', emoji: '🦉' },
 ];
 
 const PRIORITIES = [
-  { id: 'focus', label: 'Deep focus work', emoji: '🎯' },
+  { id: 'deep work', label: 'Deep focus', emoji: '🎯' },
   { id: 'meetings', label: 'Meetings', emoji: '📞' },
   { id: 'exercise', label: 'Exercise', emoji: '🏃' },
-  { id: 'creative', label: 'Creative time', emoji: '🎨' },
+  { id: 'creative', label: 'Creative', emoji: '🎨' },
   { id: 'learning', label: 'Learning', emoji: '📖' },
   { id: 'wellness', label: 'Wellness', emoji: '🧘' },
 ];
 
-const MOCK_USER: UserProfile = {
-  id: 'usr_mock',
-  name: 'Demo User',
-  role: 'engineer',
-  workStyle: 'flexible',
-  priorities: ['focus', 'exercise'],
-  wakeUpTime: '08:00',
-};
-
-const MOCK_EVENTS: ScheduleEvent[] = [
-  { id: 'evt_1', title: 'Morning Standup', start: '09:00', end: '09:30', date: new Date().toISOString().split('T')[0], color: '#6C5CE7' },
-  { id: 'evt_2', title: 'Deep Focus Block', start: '10:00', end: '12:00', date: new Date().toISOString().split('T')[0], color: '#3B82F6' },
-  { id: 'evt_3', title: 'Lunch Break', start: '12:00', end: '13:00', date: new Date().toISOString().split('T')[0], color: '#10B981' },
-  { id: 'evt_4', title: 'Exercise', start: '17:00', end: '18:00', date: new Date().toISOString().split('T')[0], color: '#F59E0B' },
-];
-
 function ProgressDots({ current, total }: { current: number; total: number }) {
   return (
-    <div className="flex gap-2 justify-center mb-8">
+    <div className="flex items-center justify-center gap-2 mb-8">
       {Array.from({ length: total }).map((_, i) => (
-        <div
-          key={i}
-          className="w-2 h-2 rounded-full transition-all duration-300"
-          style={{
-            backgroundColor: i <= current ? 'var(--accent-primary)' : 'var(--border)',
-            transform: i === current ? 'scale(1.3)' : 'scale(1)',
-          }}
-        />
+        <div key={i} className="flex items-center">
+          <div
+            className="w-2.5 h-2.5 rounded-full transition-all duration-300"
+            style={{
+              backgroundColor: i < current ? 'var(--accent-primary)' : i === current ? 'var(--accent-primary)' : 'transparent',
+              border: i <= current ? '2px solid var(--accent-primary)' : '2px solid var(--border)',
+              transform: i === current ? 'scale(1.2)' : 'scale(1)',
+            }}
+          />
+          {i < total - 1 && (
+            <div
+              className="w-6 h-0.5 mx-1 transition-all duration-300"
+              style={{
+                backgroundColor: i < current ? 'var(--accent-primary)' : 'var(--border)',
+              }}
+            />
+          )}
+        </div>
       ))}
     </div>
   );
@@ -93,11 +88,14 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     wakeUpTime: '',
     priorities: [],
     isSubmitting: false,
-    direction: 'forward',
+    error: null,
+    success: false,
   });
 
+  const [savedData, setSavedData] = useState<{ user: UserProfile; events: ScheduleEvent[] } | null>(null);
+
   const nextStep = useCallback(() => {
-    setState(prev => ({ ...prev, step: prev.step + 1, direction: 'forward' }));
+    setState(prev => ({ ...prev, step: prev.step + 1, error: null }));
   }, []);
 
   const selectRole = useCallback((role: string) => {
@@ -120,7 +118,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   }, []);
 
   const submitOnboarding = useCallback(async () => {
-    setState(prev => ({ ...prev, isSubmitting: true }));
+    setState(prev => ({ ...prev, isSubmitting: true, error: null }));
     
     try {
       const workStyle = state.wakeUpTime <= '07:00'
@@ -144,27 +142,22 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          setTimeout(() => {
-            onComplete(data.user, data.events);
-          }, 1500);
+          setSavedData({ user: data.user, events: data.events || [] });
+          setState(prev => ({ ...prev, success: true, isSubmitting: false }));
           return;
         }
       }
-    } catch {
-      // API not ready, use mock
+      
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to create schedule');
+    } catch (err) {
+      setState(prev => ({
+        ...prev,
+        isSubmitting: false,
+        error: err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+      }));
     }
-
-    setTimeout(() => {
-      const mockUser: UserProfile = {
-        ...MOCK_USER,
-        name: state.name || 'Demo User',
-        role: state.role || 'engineer',
-        priorities: state.priorities.length > 0 ? state.priorities : ['focus'],
-        wakeUpTime: state.wakeUpTime || '08:00',
-      };
-      onComplete(mockUser, MOCK_EVENTS);
-    }, 2000);
-  }, [state, onComplete]);
+  }, [state]);
 
   const handleNameSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -173,46 +166,53 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     }
   }, [state.name, nextStep]);
 
-  const renderStep = () => {
-    const animationClass = state.direction === 'forward' ? 'animate-slideInRight' : 'animate-slideIn';
+  const handleRetry = useCallback(() => {
+    setState(prev => ({ ...prev, error: null }));
+    submitOnboarding();
+  }, [submitOnboarding]);
 
+  const handleStartTalking = useCallback(() => {
+    if (savedData) {
+      onComplete(savedData.user, savedData.events);
+    }
+  }, [savedData, onComplete]);
+
+  const renderStep = () => {
     switch (state.step) {
       case 0:
         return (
-          <div key="step-0" className={animationClass}>
+          <div key="step-0" className="animate-slideInRight">
             <div className="text-center mb-8">
-              <span className="text-6xl block mb-4" style={{ animation: 'float 3s ease-in-out infinite' }}>
+              <span className="text-7xl block mb-4" style={{ animation: 'float 3s ease-in-out infinite' }}>
                 🐉
               </span>
               <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-                Hey! I&apos;m DRAKO
+                Hey! I&apos;m DRAKO 🐉
               </h1>
               <p style={{ color: 'var(--text-secondary)' }}>
-                Your AI schedule builder. Let&apos;s set up your perfect day in under 30 seconds.
+                Let&apos;s build your perfect day in 30 seconds
               </p>
             </div>
 
             <form onSubmit={handleNameSubmit}>
-              <label className="block text-sm mb-2" style={{ color: 'var(--text-muted)' }}>
-                What&apos;s your name?
-              </label>
               <input
                 type="text"
                 value={state.name}
                 onChange={(e) => setState(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter your name"
+                placeholder="What's your name?"
                 autoFocus
-                className="w-full px-4 py-3 rounded-xl text-lg outline-none transition-all focus:ring-2"
+                className="w-full px-5 py-4 rounded-xl text-xl outline-none transition-all focus:ring-2"
                 style={{
                   backgroundColor: 'var(--bg-tertiary)',
                   color: 'var(--text-primary)',
                   border: '1px solid var(--border)',
-                }}
+                  '--tw-ring-color': 'var(--accent-primary)',
+                } as React.CSSProperties}
               />
               <button
                 type="submit"
                 disabled={!state.name.trim()}
-                className="w-full mt-4 px-6 py-3 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full mt-4 px-6 py-4 rounded-xl font-semibold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02]"
                 style={{
                   backgroundColor: state.name.trim() ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
                   color: 'var(--text-primary)',
@@ -226,29 +226,26 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
       case 1:
         return (
-          <div key="step-1" className={animationClass}>
+          <div key="step-1" className="animate-slideInRight">
             <div className="text-center mb-8">
               <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-                Nice to meet you, {state.name}!
+                What do you do, {state.name}?
               </h2>
-              <p style={{ color: 'var(--text-secondary)' }}>
-                What&apos;s your role?
-              </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {ROLES.map(({ id, label, emoji }) => (
                 <button
                   key={id}
                   onClick={() => selectRole(id)}
-                  className="px-4 py-3 rounded-xl font-medium transition-all hover:scale-105"
+                  className="px-4 py-4 rounded-xl font-medium transition-all hover:scale-105"
                   style={{
-                    backgroundColor: state.role === id ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
-                    border: `1px solid ${state.role === id ? 'var(--accent-primary)' : 'var(--border)'}`,
-                    color: 'var(--text-primary)',
+                    backgroundColor: state.role === id ? 'var(--accent-primary)' : 'transparent',
+                    border: `2px solid ${state.role === id ? 'var(--accent-primary)' : 'var(--border)'}`,
+                    color: state.role === id ? 'white' : 'var(--text-secondary)',
                   }}
                 >
-                  <span className="mr-2">{emoji}</span>
+                  <span className="text-xl block mb-1">{emoji}</span>
                   {label}
                 </button>
               ))}
@@ -258,14 +255,11 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
       case 2:
         return (
-          <div key="step-2" className={animationClass}>
+          <div key="step-2" className="animate-slideInRight">
             <div className="text-center mb-8">
               <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
                 When do you start your day?
               </h2>
-              <p style={{ color: 'var(--text-secondary)' }}>
-                This helps me plan your schedule
-              </p>
             </div>
 
             <div className="flex flex-wrap justify-center gap-3">
@@ -273,15 +267,14 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 <button
                   key={time}
                   onClick={() => selectWakeTime(time)}
-                  className="px-4 py-3 rounded-full font-medium transition-all hover:scale-105"
+                  className="px-5 py-3 rounded-full font-medium transition-all hover:scale-105"
                   style={{
-                    backgroundColor: state.wakeUpTime === time ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
-                    border: `1px solid ${state.wakeUpTime === time ? 'var(--accent-primary)' : 'var(--border)'}`,
-                    color: 'var(--text-primary)',
+                    backgroundColor: state.wakeUpTime === time ? 'var(--accent-primary)' : 'transparent',
+                    border: `2px solid ${state.wakeUpTime === time ? 'var(--accent-primary)' : 'var(--border)'}`,
+                    color: state.wakeUpTime === time ? 'white' : 'var(--text-secondary)',
                   }}
                 >
-                  <span className="mr-1">{emoji}</span>
-                  {label}
+                  {label} {emoji}
                 </button>
               ))}
             </div>
@@ -290,29 +283,29 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
       case 3:
         return (
-          <div key="step-3" className={animationClass}>
+          <div key="step-3" className="animate-slideInRight">
             <div className="text-center mb-8">
               <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-                What matters most in your day?
+                What matters most?
               </h2>
               <p style={{ color: 'var(--text-secondary)' }}>
                 Pick all that apply
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
               {PRIORITIES.map(({ id, label, emoji }) => (
                 <button
                   key={id}
                   onClick={() => togglePriority(id)}
                   className="px-4 py-3 rounded-xl font-medium transition-all hover:scale-105"
                   style={{
-                    backgroundColor: state.priorities.includes(id) ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
-                    border: `1px solid ${state.priorities.includes(id) ? 'var(--accent-primary)' : 'var(--border)'}`,
-                    color: 'var(--text-primary)',
+                    backgroundColor: state.priorities.includes(id) ? 'var(--accent-primary)' : 'transparent',
+                    border: `2px solid ${state.priorities.includes(id) ? 'var(--accent-primary)' : 'var(--border)'}`,
+                    color: state.priorities.includes(id) ? 'white' : 'var(--text-secondary)',
                   }}
                 >
-                  <span className="mr-2">{emoji}</span>
+                  <span className="mr-1">{emoji}</span>
                   {label}
                 </button>
               ))}
@@ -324,47 +317,88 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 submitOnboarding();
               }}
               disabled={state.priorities.length === 0}
-              className="w-full px-6 py-3 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-6 py-4 rounded-xl font-semibold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02]"
               style={{
                 backgroundColor: state.priorities.length > 0 ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
                 color: 'var(--text-primary)',
               }}
             >
-              Build My Schedule →
+              Build my day →
             </button>
           </div>
         );
 
       case 4:
         return (
-          <div key="step-4" className={`${animationClass} text-center`}>
-            <div className="mb-8">
-              <div className="relative inline-block">
-                <span className="text-6xl block animate-eyePulse">🐉</span>
-              </div>
-              <h2 className="text-xl font-bold mt-4 mb-2" style={{ color: 'var(--text-primary)' }}>
-                Building your perfect day...
-              </h2>
-              <p style={{ color: 'var(--text-secondary)' }}>
-                Analyzing your preferences
-              </p>
-            </div>
+          <div key="step-4" className="animate-slideInRight text-center">
+            {state.error ? (
+              <>
+                <div className="mb-8">
+                  <span className="text-6xl block mb-4">😔</span>
+                  <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+                    Hmm, something went wrong
+                  </h2>
+                  <p style={{ color: 'var(--text-secondary)' }}>
+                    {state.error}
+                  </p>
+                </div>
+                <button
+                  onClick={handleRetry}
+                  className="px-8 py-4 rounded-xl font-semibold text-lg transition-all hover:scale-105"
+                  style={{
+                    backgroundColor: 'var(--accent-primary)',
+                    color: 'white',
+                  }}
+                >
+                  Try Again →
+                </button>
+              </>
+            ) : state.success ? (
+              <>
+                <div className="mb-8">
+                  <span className="text-6xl block mb-4 animate-bounce">✨</span>
+                  <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--accent-success)' }}>
+                    Your schedule is ready!
+                  </h2>
+                  <p style={{ color: 'var(--text-secondary)' }}>
+                    DRAKO has built your perfect day
+                  </p>
+                </div>
+                <button
+                  onClick={handleStartTalking}
+                  className="px-8 py-4 rounded-2xl font-semibold text-lg transition-all hover:scale-105"
+                  style={{
+                    background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-glow))',
+                    color: 'white',
+                    boxShadow: '0 0 30px rgba(108, 92, 231, 0.4)',
+                  }}
+                >
+                  🎙️ Start talking to DRAKO →
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="mb-8">
+                  <span className="text-6xl block animate-eyePulse">🐉</span>
+                  <h2 className="text-xl font-bold mt-4 mb-2" style={{ color: 'var(--text-primary)' }}>
+                    Building your perfect day...
+                  </h2>
+                  <p style={{ color: 'var(--text-secondary)' }}>
+                    Analyzing your preferences
+                  </p>
+                </div>
 
-            <div
-              className="h-2 rounded-full overflow-hidden mb-8"
-              style={{ backgroundColor: 'var(--bg-tertiary)' }}
-            >
-              <div
-                className="h-full rounded-full animate-buildSchedule"
-                style={{ backgroundColor: 'var(--accent-primary)' }}
-              />
-            </div>
-
-            <div className="animate-fadeInUp" style={{ animationDelay: '1.5s', opacity: 0 }}>
-              <p className="text-lg mb-4" style={{ color: 'var(--accent-success)' }}>
-                ✨ Your schedule is ready!
-              </p>
-            </div>
+                <div
+                  className="h-2 rounded-full overflow-hidden"
+                  style={{ backgroundColor: 'var(--bg-tertiary)' }}
+                >
+                  <div
+                    className="h-full rounded-full animate-buildSchedule"
+                    style={{ backgroundColor: 'var(--accent-primary)' }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         );
 
@@ -385,7 +419,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           border: '1px solid var(--border)',
         }}
       >
-        <ProgressDots current={state.step} total={5} />
+        {state.step < 4 && <ProgressDots current={state.step} total={4} />}
         {renderStep()}
       </div>
     </div>
