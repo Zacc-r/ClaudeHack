@@ -101,3 +101,48 @@ body {
   background-color: var(--border);
   border-radius: 3px;
 }
+
+@keyframes slideInRight {
+  from { transform: translateX(100px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutLeft {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(-100px); opacity: 0; }
+}
+
+@keyframes buildSchedule {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+@keyframes fadeInUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes eyePulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; }
+}
+
+.animate-slideInRight {
+  animation: slideInRight 300ms ease-out forwards;
+}
+
+.animate-slideOutLeft {
+  animation: slideOutLeft 300ms ease-out forwards;
+}
+
+.animate-buildSchedule {
+  animation: buildSchedule 2s ease-out forwards;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 400ms ease-out forwards;
+}
+
+.animate-eyePulse {
+  animation: eyePulse 1.5s ease-in-out infinite;
+}

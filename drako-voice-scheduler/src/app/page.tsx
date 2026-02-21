@@ -5,6 +5,7 @@ import { useCopilotReadable, useCopilotAction } from '@copilotkit/react-core';
 import { Header } from '@/components/Header';
 import { VideoCall } from '@/components/VideoCall';
 import { ScheduleView } from '@/components/ScheduleView';
+import { OnboardingFlow, type UserProfile } from '@/components/OnboardingFlow';
 import type { ScheduleEvent } from '@/components/ScheduleCard';
 
 function timeToMinutes(time: string): number {
@@ -12,21 +13,42 @@ function timeToMinutes(time: string): number {
   return hours * 60 + minutes;
 }
 
-const MOCK_EVENTS: ScheduleEvent[] = [
-  { id: 'evt_1', title: 'Team Standup', start: '09:00', end: '09:30', date: '2026-02-21', color: '#6C5CE7' },
-  { id: 'evt_2', title: 'Lunch Break', start: '12:00', end: '13:00', date: '2026-02-21', color: '#10B981' },
-  { id: 'evt_3', title: 'Focus Time', start: '14:00', end: '16:00', date: '2026-02-21', color: '#F59E0B' },
-];
-
 export default function Home() {
-  const [events, setEvents] = useState<ScheduleEvent[]>(MOCK_EVENTS);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [conversationUrl, setConversationUrl] = useState<string | null>(null);
   const [newEventIds, setNewEventIds] = useState<Set<string>>(new Set());
   const [status, setStatus] = useState<'active' | 'ready' | 'error'>('ready');
   const [speaker, setSpeaker] = useState<'drako' | 'user' | 'idle'>('idle');
   const [isActive, setIsActive] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   useEffect(() => {
+    const checkUser = async () => {
+      try {
+        const res = await fetch('/api/user');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.onboarded && data.user) {
+            setUser(data.user);
+            if (data.events) {
+              setEvents(data.events);
+            }
+          }
+        }
+      } catch {
+        // No user yet
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkUser();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
     const fetchSchedule = async () => {
       try {
         const res = await fetch('/api/schedule?date=' + new Date().toISOString().split('T')[0]);
@@ -37,13 +59,15 @@ export default function Home() {
           }
         }
       } catch {
-        // Use mock data if API unavailable
+        // Keep existing events
       }
     };
     fetchSchedule();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
+    if (!user) return;
+
     const es = new EventSource('/api/schedule/stream');
 
     es.onopen = () => {
@@ -80,11 +104,11 @@ export default function Home() {
     };
 
     return () => es.close();
-  }, []);
+  }, [user]);
 
   const startConversation = useCallback(async () => {
+    setIsConnecting(true);
     try {
-      setStatus('ready');
       const res = await fetch('/api/tavus/start', { method: 'POST' });
       const data = await res.json();
       if (data.conversationUrl) {
@@ -93,11 +117,21 @@ export default function Home() {
         setSpeaker('drako');
         setStatus('active');
       } else {
+        console.error('No conversation URL:', data);
         setStatus('error');
       }
-    } catch {
+    } catch (err) {
+      console.error('Start conversation error:', err);
       setStatus('error');
+    } finally {
+      setIsConnecting(false);
     }
+  }, []);
+
+  const endConversation = useCallback(() => {
+    setConversationUrl(null);
+    setIsActive(false);
+    setSpeaker('idle');
   }, []);
 
   const handleRemoveEvent = useCallback(async (id: string) => {
@@ -119,9 +153,27 @@ export default function Home() {
     }
   }, [events]);
 
+  const handleOnboardingComplete = useCallback((newUser: UserProfile, newEvents: ScheduleEvent[]) => {
+    setUser(newUser);
+    setEvents(newEvents);
+  }, []);
+
+  const resetUser = useCallback(() => {
+    document.cookie = 'drako_user_id=; path=/; max-age=0';
+    setUser(null);
+    setEvents([]);
+    setConversationUrl(null);
+    setIsActive(false);
+  }, []);
+
   useCopilotReadable({
     description: "The user's current schedule for today",
     value: events,
+  });
+
+  useCopilotReadable({
+    description: "The user's profile information",
+    value: user,
   });
 
   useCopilotAction({
@@ -141,17 +193,40 @@ export default function Home() {
     },
   });
 
+  if (isLoading) {
+    return (
+      <div
+        className="flex min-h-screen items-center justify-center"
+        style={{ backgroundColor: 'var(--bg-primary)' }}
+      >
+        <span
+          className="text-4xl animate-eyePulse"
+          style={{ color: 'var(--accent-primary)' }}
+        >
+          🐉
+        </span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+  }
+
   return (
     <div className="flex flex-col h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      <Header status={status} />
+      <Header status={status} userName={user.name} onReset={resetUser} />
 
       <main className="flex-1 flex flex-col md:flex-row overflow-hidden">
         <section className="w-full md:w-1/2 p-6 flex flex-col">
           <VideoCall
             conversationUrl={conversationUrl}
             isActive={isActive}
+            isConnecting={isConnecting}
             speaker={speaker}
+            userName={user.name}
             onStart={startConversation}
+            onEnd={endConversation}
           />
 
           {conversationUrl && (
@@ -165,20 +240,6 @@ export default function Home() {
                 }}
               >
                 Toggle Speaker (Demo)
-              </button>
-              <button
-                onClick={() => {
-                  setConversationUrl(null);
-                  setIsActive(false);
-                  setSpeaker('idle');
-                }}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                style={{
-                  backgroundColor: 'var(--accent-danger)',
-                  color: 'var(--text-primary)',
-                }}
-              >
-                End Call
               </button>
             </div>
           )}

@@ -2,14 +2,15 @@
 
 interface HeaderProps {
   status: 'active' | 'ready' | 'error';
+  userName?: string;
+  onReset?: () => void;
 }
 
-export function Header({ status }: HeaderProps) {
+export function Header({ status, userName, onReset }: HeaderProps) {
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
-    year: 'numeric',
   });
 
   const statusConfig = {
@@ -48,23 +49,43 @@ export function Header({ status }: HeaderProps) {
 
       <div className="flex items-center gap-6">
         <span
-          className="text-sm font-mono-time"
+          className="text-sm font-mono-time hidden sm:block"
           style={{ color: 'var(--text-secondary)' }}
         >
           {today}
         </span>
+
+        {userName && (
+          <span
+            className="text-sm font-medium"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            Hey, {userName}!
+          </span>
+        )}
 
         <div className="flex items-center gap-2">
           <div
             className={`w-2 h-2 rounded-full ${color} animate-status-pulse`}
           />
           <span
-            className="text-xs uppercase tracking-wider"
+            className="text-xs uppercase tracking-wider hidden sm:block"
             style={{ color: 'var(--text-muted)' }}
           >
             {label}
           </span>
         </div>
+
+        {onReset && (
+          <button
+            onClick={onReset}
+            className="text-xs px-2 py-1 rounded transition-colors hover:bg-[var(--bg-tertiary)]"
+            style={{ color: 'var(--text-muted)' }}
+            title="Reset onboarding (demo)"
+          >
+            Reset
+          </button>
+        )}
       </div>
     </header>
   );
