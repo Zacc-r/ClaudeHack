@@ -232,7 +232,6 @@ export default function PlayPage() {
     holdTimerRef.current = setTimeout(() => {
       if (!dragging.current) startHold();
     }, 200);
-    e.preventDefault();
   }, [current, startHold]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
@@ -264,11 +263,12 @@ export default function PlayPage() {
 
   const onPointerUp = useCallback(() => {
     if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null; }
+    cancelHold();
     dragStart.current = null;
     dragging.current = false;
     axisRef.current = null;
     setDragX(0); setDragY(0); setAxis(null);
-  }, []);
+  }, [cancelHold]);
 
   const toggleDay = useCallback((day: Day) => {
     setSlots(prev => prev.map((s, i) => {
@@ -336,7 +336,7 @@ export default function PlayPage() {
 
   return (
     <div className="min-h-screen flex flex-col select-none"
-      style={{ background: 'linear-gradient(135deg,#0F172A 0%,#1E1B4B 50%,#0F172A 100%)' }}
+      style={{ background: 'linear-gradient(135deg,#0F172A 0%,#1E1B4B 50%,#0F172A 100%)', touchAction: 'none' }}
       onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
 
       {/* Progress */}
