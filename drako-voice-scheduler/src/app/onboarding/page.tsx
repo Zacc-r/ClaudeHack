@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { OnboardingFlow } from '@/components/OnboardingFlow';
 import type { UserProfile } from '@/components/OnboardingFlow';
 import type { ScheduleEvent } from '@/components/ScheduleCard';
 
-export default function OnboardingPage() {
+function OnboardingInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fresh = searchParams.get('fresh');
@@ -14,7 +14,6 @@ export default function OnboardingPage() {
   // Already done? Skip ahead (unless ?fresh=1)
   useEffect(() => {
     if (fresh) {
-      // Clear old cookie for a fresh start
       document.cookie = 'drako_user_id=; path=/; max-age=0';
       return;
     }
@@ -24,13 +23,22 @@ export default function OnboardingPage() {
   }, [router, fresh]);
 
   const handleComplete = (user: UserProfile, events: ScheduleEvent[]) => {
-    // Stash for the play page, then move on
     if (typeof window !== 'undefined') {
+      // Save full user profile (includes selectedActivities, rhythm, type for /play)
       sessionStorage.setItem('drako_user', JSON.stringify(user));
       sessionStorage.setItem('drako_events', JSON.stringify(events));
     }
+    // → time placement game, then → schedule
     router.push('/play');
   };
 
   return <OnboardingFlow onComplete={handleComplete} />;
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense>
+      <OnboardingInner />
+    </Suspense>
+  );
 }

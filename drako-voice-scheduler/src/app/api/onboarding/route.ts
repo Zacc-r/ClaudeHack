@@ -19,6 +19,7 @@ interface UserProfile {
   type: string;
   rhythm: string;
   nonNegotiables: string[];
+  selectedActivities: string[];
   struggle: string;
   createdAt: string;
 }
@@ -126,8 +127,13 @@ const NON_NEG_NORMALIZE: Record<string, string> = {
   meals: 'meals', learning: 'learning', breaks: 'breaks',
   creative: 'creative', family: 'family',
   'deep work': 'deep_focus', 'focus': 'deep_focus', deep_work: 'deep_focus',
-  'creative time': 'creative', 'social': 'family',
+  'creative time': 'creative', social: 'family',
   meditation: 'breaks', side_project: 'creative', entertainment: 'breaks',
+  // New multi-select activity IDs
+  work: 'deep_focus', school: 'learning', commute: 'breaks',
+  gym: 'exercise', running: 'exercise',
+  cooking: 'meals', errands: 'breaks',
+  reading: 'learning', shows: 'breaks', gaming: 'breaks',
 };
 
 export async function POST(req: NextRequest) {
@@ -144,6 +150,8 @@ export async function POST(req: NextRequest) {
     const rawNonNegs = rawSurvey.nonNegotiables || rawSurvey.priorities || ['deep_focus'];
     const normalizedNonNegs = rawNonNegs.map((n: string) => NON_NEG_NORMALIZE[n] || n);
     const normalizedStruggle = rawSurvey.struggle || 'no_focus_time';
+    // New: explicit activity list from multi-select step
+    const selectedActivities: string[] = rawSurvey.selectedActivities || [];
 
     const r = getRedis();
     const id = `usr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -154,6 +162,7 @@ export async function POST(req: NextRequest) {
       type: normalizedType,
       rhythm: normalizedRhythm,
       nonNegotiables: normalizedNonNegs,
+      selectedActivities,
       struggle: normalizedStruggle,
       createdAt: new Date().toISOString(),
     };
@@ -226,22 +235,24 @@ Respond ONLY with valid JSON:
 
 Name: ${rawSurvey.name}
 Type: ${normalizedType} (${typeDesc})
-Brain turns on: ${normalizedRhythm} (${rhythmDesc})
-Non-negotiables: ${nonNegotiableText}
+Wakes up: ${normalizedRhythm} (${rhythmDesc})
+Activities in their day: ${selectedActivities.length > 0 ? selectedActivities.join(', ') : nonNegotiableText}
 Biggest struggle: ${struggleDesc}
 
-Rules:
-- Schedule should run from their wake time through evening
-- Protect their non-negotiables with dedicated blocks
-- Address their struggle (e.g., if "too many meetings", batch meetings into one block)
-- Include transitions/breaks between intensive blocks
-- Make it feel realistic, not aspirational
-- Each event needs: title (with emoji), start (HH:MM), end (HH:MM)
-- Use natural titles like "☕ Morning coffee + news" not "Morning Routine Block"
-- Keep titles short (under 25 chars)
-- Generate 5-8 events
+Smart scheduling rules:
+- work/school typically runs 9 AM – 5 PM (or 8 AM – 3 PM for school)
+- commute = 30-45 min before AND after work/school
+- gym/running: morning for early risers, evening for others
+- deep focus / creative = morning peak window (right after wake)
+- learning / side projects = evening (7-9 PM)
+- social / family / cooking = evening (6-9 PM)
+- meditation = at wake time
+- Add natural transitions and meal breaks
+- Use real emoji-prefixed titles like "☕ Morning coffee", "🧠 Deep focus", "🍽️ Lunch"
+- Keep titles under 25 chars
+- Generate 6-10 events covering the whole day
 
-Respond ONLY with a JSON array, no markdown, no explanation:
+Respond ONLY with a JSON array, no markdown:
 [{"title": "...", "start": "HH:MM", "end": "HH:MM"}]`,
         }],
       });

@@ -1,6 +1,7 @@
 'use client';
 
 import { ScheduleCard, type ScheduleEvent } from './ScheduleCard';
+import { DrakoRobot } from './DrakoRobot';
 
 interface ScheduleViewProps {
   events: ScheduleEvent[];
@@ -171,8 +172,17 @@ export function ScheduleView({ events, newEventIds, onRemoveEvent }: ScheduleVie
               className="absolute inset-0 flex items-center justify-center"
               style={{ color: 'var(--text-muted)' }}
             >
-              <div className="text-center p-8 rounded-2xl" style={{ backgroundColor: 'rgba(30, 41, 59, 0.4)' }}>
-                <span className="text-5xl block mb-4">📅</span>
+              <div
+                className="text-center p-8 rounded-2xl"
+                style={{
+                  backgroundColor: 'rgba(30, 41, 59, 0.4)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+                }}
+              >
+                <DrakoRobot size="md" state="idle" className="mb-4 mx-auto" />
                 <p className="text-lg font-medium text-white mb-2">No events yet</p>
                 <p className="text-sm text-[#94A3B8]">Talk to DRAKO or use the chat to add events!</p>
               </div>

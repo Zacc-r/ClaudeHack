@@ -7,6 +7,7 @@ import { CopilotPopup } from '@copilotkit/react-ui';
 import { Header } from '@/components/Header';
 import { VideoCall } from '@/components/VideoCall';
 import { ScheduleView } from '@/components/ScheduleView';
+import { DrakoRobot } from '@/components/DrakoRobot';
 import type { UserProfile } from '@/components/OnboardingFlow';
 import type { ScheduleEvent } from '@/components/ScheduleCard';
 
@@ -28,11 +29,15 @@ export default function SchedulePage() {
   const [isActive, setIsActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
       try {
-        // Check for user via cookie
         const res = await fetch('/api/user');
         if (res.ok) {
           const data = await res.json();
@@ -72,20 +77,20 @@ export default function SchedulePage() {
   // SSE for real-time updates with reconnection
   useEffect(() => {
     if (!user) return;
-    
+
     let es: EventSource | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let reconnectAttempts = 0;
     const MAX_RECONNECT_DELAY = 30000;
-    
+
     const connect = () => {
       es = new EventSource('/api/schedule/stream');
-      
+
       es.onopen = () => {
         setStatus('ready');
         reconnectAttempts = 0;
       };
-      
+
       es.onmessage = (e) => {
         try {
           const update = JSON.parse(e.data);
@@ -117,7 +122,7 @@ export default function SchedulePage() {
           }
         } catch { /* heartbeat or invalid JSON */ }
       };
-      
+
       es.onerror = () => {
         es?.close();
         setStatus('error');
@@ -126,9 +131,9 @@ export default function SchedulePage() {
         reconnectTimer = setTimeout(connect, delay);
       };
     };
-    
+
     connect();
-    
+
     return () => {
       es?.close();
       if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -206,9 +211,26 @@ export default function SchedulePage() {
     return (
       <div className="flex min-h-screen items-center justify-center"
         style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E1B4B 50%, #0F172A 100%)' }}>
-        <div className="flex flex-col items-center gap-4">
-          <div className="text-6xl animate-pulse">🐉</div>
-          <div className="text-lg text-[#38BDF8] animate-pulse">Loading your day...</div>
+        <div className="flex flex-col items-center gap-6">
+          <DrakoRobot size="xl" state="thinking" />
+          <div className="text-lg font-semibold bg-gradient-to-r from-[#38BDF8] to-[#818CF8] bg-clip-text text-transparent animate-pulse">
+            Loading your day...
+          </div>
+          {/* Progress bar */}
+          <div className="w-48 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(30,41,59,0.8)' }}>
+            <div
+              className="h-full rounded-full animate-buildSchedule"
+              style={{
+                background: 'linear-gradient(90deg, #38BDF8, #818CF8)',
+                animationDuration: '2s',
+              }}
+            />
+          </div>
+          {/* Skeleton header hint */}
+          <div className="w-64 space-y-2 opacity-30">
+            <div className="h-3 rounded-full bg-[#334155]" />
+            <div className="h-3 rounded-full bg-[#334155] w-3/4 mx-auto" />
+          </div>
         </div>
       </div>
     );
@@ -217,7 +239,13 @@ export default function SchedulePage() {
   if (!user) return null;
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div
+      className="flex flex-col min-h-screen transition-opacity duration-700"
+      style={{
+        backgroundColor: 'var(--bg-primary)',
+        opacity: mounted ? 1 : 0,
+      }}
+    >
       <Header status={status} userName={user.name} onReset={resetDemo} />
 
       {/* Persona strip */}
@@ -247,7 +275,8 @@ export default function SchedulePage() {
           />
         </section>
 
-        <div className="hidden lg:block w-px" style={{ backgroundColor: 'var(--border)' }} />
+        {/* Gradient glow column divider */}
+        <div className="hidden lg:block w-px gradient-divider" />
 
         <section className="w-full lg:w-1/2 flex flex-col border-t lg:border-t-0 overflow-y-auto"
           style={{ borderColor: 'var(--border)', maxHeight: '100vh' }}>
@@ -259,14 +288,23 @@ export default function SchedulePage() {
         </section>
       </main>
 
-      <footer className="flex items-center justify-center gap-2 py-2 text-xs"
-        style={{ backgroundColor: 'rgba(15,23,42,0.9)', borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+      {/* Premium footer with gradient text + accent line */}
+      <footer
+        className="relative flex items-center justify-center gap-2 py-2 text-xs"
+        style={{ backgroundColor: 'rgba(15,23,42,0.9)', color: 'var(--text-muted)' }}
+      >
+        <div
+          className="absolute top-0 left-0 right-0 h-px"
+          style={{
+            background: 'linear-gradient(90deg, transparent, #38BDF8, #818CF8, transparent)',
+          }}
+        />
         <span>Powered by</span>
-        <span className="font-semibold text-[#38BDF8]">Claude</span>
+        <span className="font-semibold bg-gradient-to-r from-[#38BDF8] to-[#67E8F9] bg-clip-text text-transparent">Claude</span>
         <span>+</span>
-        <span className="font-semibold text-[#818CF8]">Tavus</span>
-        <span className="mx-1">•</span>
-        <span className="font-semibold text-[#A855F7]">CopilotKit</span>
+        <span className="font-semibold bg-gradient-to-r from-[#818CF8] to-[#A78BFA] bg-clip-text text-transparent">Tavus</span>
+        <span className="mx-1">&middot;</span>
+        <span className="font-semibold bg-gradient-to-r from-[#A855F7] to-[#C084FC] bg-clip-text text-transparent">CopilotKit</span>
       </footer>
 
       <CopilotPopup

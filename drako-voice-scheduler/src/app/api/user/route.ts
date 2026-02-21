@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   const updates = await req.json();
-  const allowed = ['name', 'rhythm', 'nonNegotiables', 'struggle', 'timeAllocations', 'sleepTime', 'peakFocusWindow'];
+  const allowed = ['name', 'rhythm', 'nonNegotiables', 'selectedActivities', 'struggle', 'timeAllocations', 'timeSlots', 'sleepTime', 'peakFocusWindow'];
   const safeUpdates = Object.fromEntries(Object.entries(updates).filter(([k]) => allowed.includes(k)));
 
   const updated = { ...user, ...safeUpdates };

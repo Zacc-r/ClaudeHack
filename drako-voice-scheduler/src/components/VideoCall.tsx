@@ -14,6 +14,23 @@ interface VideoCallProps {
   onEndConversation?: () => void;
 }
 
+function CornerAccents() {
+  const style = {
+    position: 'absolute' as const,
+    width: '20px',
+    height: '20px',
+    pointerEvents: 'none' as const,
+  };
+  return (
+    <>
+      <div style={{ ...style, top: 8, left: 8, borderTop: '2px solid #38BDF8', borderLeft: '2px solid #38BDF8' }} />
+      <div style={{ ...style, top: 8, right: 8, borderTop: '2px solid #818CF8', borderRight: '2px solid #818CF8' }} />
+      <div style={{ ...style, bottom: 8, left: 8, borderBottom: '2px solid #818CF8', borderLeft: '2px solid #818CF8' }} />
+      <div style={{ ...style, bottom: 8, right: 8, borderBottom: '2px solid #38BDF8', borderRight: '2px solid #38BDF8' }} />
+    </>
+  );
+}
+
 export function VideoCall({
   conversationUrl,
   isActive,
@@ -40,6 +57,9 @@ export function VideoCall({
           backdropFilter: 'blur(20px)',
         }}
       >
+        {/* Active call corner accent marks */}
+        {isActive && <CornerAccents />}
+
         {connectionError && !isConnecting ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-8">
             <div className="text-5xl">😔</div>
@@ -58,17 +78,20 @@ export function VideoCall({
             </button>
           </div>
         ) : conversationUrl && !isConnecting ? (
-          <iframe
-            src={conversationUrl}
-            className="absolute inset-0 w-full h-full rounded-2xl"
-            allow="camera; microphone; autoplay"
-            style={{ border: 'none' }}
-          />
+          <>
+            <iframe
+              src={conversationUrl}
+              className="absolute inset-0 w-full h-full rounded-2xl"
+              allow="camera; microphone; autoplay"
+              style={{ border: 'none' }}
+            />
+            <CornerAccents />
+          </>
         ) : isConnecting ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
             <DrakoRobot size="xl" state="thinking" />
             <span
-              className="text-lg font-semibold bg-gradient-to-r from-[#38BDF8] to-[#818CF8] bg-clip-text text-transparent"
+              className="text-lg font-semibold bg-gradient-to-r from-[#38BDF8] to-[#818CF8] bg-clip-text text-transparent animate-pulse"
             >
               Connecting to DRAKO...
             </span>
@@ -88,7 +111,7 @@ export function VideoCall({
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-8 p-8">
             <DrakoRobot size="xl" state="idle" />
-            
+
             <div className="text-center">
               <p className="text-xl font-semibold text-white mb-2">
                 {userName ? `Hey ${userName}!` : 'Hey there!'}
@@ -97,17 +120,27 @@ export function VideoCall({
                 Ready to plan your perfect day?
               </p>
             </div>
-            
-            <button
-              onClick={onStartConversation}
-              className="px-10 py-5 rounded-2xl text-lg font-bold text-white transition-all hover:scale-105 active:scale-95 animate-glowPulse"
-              style={{
-                background: 'linear-gradient(135deg, #38BDF8, #818CF8)',
-              }}
-            >
-              🎙️ Start Talking to DRAKO
-            </button>
-            
+
+            {/* CTA button with pulsing ring */}
+            <div className="relative">
+              <div
+                className="absolute inset-0 rounded-2xl"
+                style={{
+                  border: '2px solid rgba(56,189,248,0.4)',
+                  animation: 'pulseRing 2s ease-out infinite',
+                }}
+              />
+              <button
+                onClick={onStartConversation}
+                className="relative px-10 py-5 rounded-2xl text-lg font-bold text-white transition-all hover:scale-105 active:scale-95 btn-glow"
+                style={{
+                  background: 'linear-gradient(135deg, #38BDF8, #818CF8)',
+                }}
+              >
+                🎙️ Start Talking to DRAKO
+              </button>
+            </div>
+
             <p className="text-xs text-[#475569] flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#38BDF8] animate-pulse" />
               Microphone + camera required

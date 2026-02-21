@@ -74,8 +74,14 @@ export function ScheduleCard({ event, isNew, onRemove }: ScheduleCardProps) {
       style={{
         top: `${top}px`,
         height: `${height}px`,
-        backgroundColor: 'var(--bg-tertiary)',
+        backgroundColor: 'rgba(30, 41, 59, 0.5)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
         borderLeft: `4px solid ${color}`,
+        border: `1px solid rgba(255,255,255,0.06)`,
+        borderLeftWidth: '4px',
+        borderLeftColor: color,
+        boxShadow: `0 4px 16px rgba(0,0,0,0.3), inset 20px 0 40px -20px ${color}15`,
       }}
       onClick={() => onRemove(event.id)}
     >

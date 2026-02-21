@@ -14,27 +14,25 @@ export function Header({ status, userName, onReset }: HeaderProps) {
   });
 
   const statusConfig = {
-    active: { color: 'bg-[var(--accent-success)]', label: 'Connected' },
-    ready: { color: 'bg-[var(--accent-warning)]', label: 'Ready' },
-    error: { color: 'bg-[var(--accent-danger)]', label: 'Error' },
+    active: { color: '#10B981', bgTint: 'rgba(16,185,129,0.12)', label: 'Connected' },
+    ready: { color: '#F59E0B', bgTint: 'rgba(245,158,11,0.12)', label: 'Ready' },
+    error: { color: '#EF4444', bgTint: 'rgba(239,68,68,0.12)', label: 'Error' },
   };
 
-  const { color, label } = statusConfig[status];
+  const { color, bgTint, label } = statusConfig[status];
 
   return (
     <header
-      className="flex items-center justify-between px-4 lg:px-6 py-4 border-b"
+      className="relative flex items-center justify-between px-4 lg:px-6 py-4"
       style={{
         backgroundColor: 'var(--bg-secondary)',
-        borderColor: 'var(--border)',
       }}
     >
       <div className="flex items-center gap-3">
         <span className="text-2xl lg:text-3xl">🐉</span>
         <div>
           <h1
-            className="text-lg lg:text-xl font-bold tracking-tight"
-            style={{ color: 'var(--text-primary)' }}
+            className="text-lg lg:text-xl font-bold tracking-tight bg-gradient-to-r from-[#38BDF8] to-[#818CF8] bg-clip-text text-transparent"
           >
             DRAKO
           </h1>
@@ -64,13 +62,18 @@ export function Header({ status, userName, onReset }: HeaderProps) {
           </span>
         )}
 
-        <div className="flex items-center gap-2">
+        {/* Status pill badge with tinted background */}
+        <div
+          className="flex items-center gap-2 px-3 py-1 rounded-full"
+          style={{ backgroundColor: bgTint }}
+        >
           <div
-            className={`w-2 h-2 rounded-full ${color} animate-status-pulse`}
+            className="w-2 h-2 rounded-full animate-status-pulse"
+            style={{ backgroundColor: color }}
           />
           <span
-            className="text-xs uppercase tracking-wider hidden sm:block"
-            style={{ color: 'var(--text-muted)' }}
+            className="text-xs uppercase tracking-wider font-medium hidden sm:block"
+            style={{ color }}
           >
             {label}
           </span>
@@ -90,6 +93,14 @@ export function Header({ status, userName, onReset }: HeaderProps) {
           </button>
         )}
       </div>
+
+      {/* Gradient accent line at bottom */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-px"
+        style={{
+          background: 'linear-gradient(90deg, transparent, #38BDF8, #818CF8, transparent)',
+        }}
+      />
     </header>
   );
 }
