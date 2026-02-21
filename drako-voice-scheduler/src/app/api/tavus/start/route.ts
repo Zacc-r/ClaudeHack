@@ -187,6 +187,11 @@ export async function POST(req: NextRequest) {
       family: 'family/social time',
     };
 
+    // Load persona if available
+    const r = getRedis();
+    const personaRaw = await r.get(`persona:${userId}`);
+    const userPersona = personaRaw ? JSON.parse(personaRaw as string) : null;
+
     let userContext: string;
     if (user) {
       const userData = user as unknown as Record<string, unknown>;
@@ -200,7 +205,15 @@ export async function POST(req: NextRequest) {
       const coaching = userStruggle ? struggleCoaching[userStruggle] : 'Help them stay organized.';
       const prioritiesText = userNonNegotiables?.map(n => nonNegotiableLabels[n] || n).join(', ') || 'general productivity';
 
-      userContext = `Speaking with: ${user.name}
+      userContext = userPersona ? `Speaking with: ${user.name}
+Persona archetype: ${userPersona.archetype} ${userPersona.archetypeEmoji}
+Tagline: ${userPersona.tagline}
+Peak focus window: ${userPersona.peakWindow}
+Coaching tone: ${userPersona.coachingTone}
+Key schedule protections: ${(userPersona.keyProtections || []).join('; ')}
+Watch outs: ${(userPersona.watchOuts || []).join('; ')}
+Opening line to use: "${userPersona.drakoGreeting}"` :
+`Speaking with: ${user.name}
 They are: ${typeDesc}
 Their brain turns on: ${rhythmDesc}
 Priorities: ${prioritiesText}
@@ -222,22 +235,22 @@ Coaching note: ${coaching}`;
     console.log('[Tavus Start] Creating persona for user:', userId);
     console.log('[Tavus Start] App URL:', appUrl);
 
-    const persona = await createTavusPersona({
+    const tavusPersona = await createTavusPersona({
       name: `DRAKO-${userId.slice(0, 8)}`,
       systemPrompt: DRAKO_SYSTEM_PROMPT,
       context: fullContext,
       tools: DRAKO_TOOLS,
     });
 
-    if (!persona.persona_id) {
-      console.error('[Tavus Start] Persona creation failed:', persona);
-      return NextResponse.json({ error: 'Failed to create persona', details: persona }, { status: 500 });
+    if (!tavusPersona.persona_id) {
+      console.error('[Tavus Start] Persona creation failed:', tavusPersona);
+      return NextResponse.json({ error: 'Failed to create persona', details: tavusPersona }, { status: 500 });
     }
 
-    console.log('[Tavus Start] Persona created:', persona.persona_id);
+    console.log('[Tavus Start] Persona created:', tavusPersona.persona_id);
 
     const conversation = await createTavusConversation({
-      personaId: persona.persona_id,
+      personaId: tavusPersona.persona_id,
       context: fullContext,
       callbackUrl: `${appUrl}/api/webhook/tavus`,
       toolsCallbackUrl: `${appUrl}/api/tavus/tools`,
@@ -250,7 +263,6 @@ Coaching note: ${coaching}`;
 
     console.log('[Tavus Start] Conversation started:', conversation.conversation_id);
 
-    const r = getRedis();
     await r.set(`conversation:${conversation.conversation_id}:userId`, userId, 'EX', 86400);
     console.log(`[Tavus Start] Mapped conversation ${conversation.conversation_id} → user ${userId}`);
 
@@ -258,7 +270,7 @@ Coaching note: ${coaching}`;
       success: true,
       conversationUrl: conversation.conversation_url,
       conversationId: conversation.conversation_id,
-      personaId: persona.persona_id,
+      personaId: tavusPersona.persona_id,
       userName,
     });
   } catch (error) {

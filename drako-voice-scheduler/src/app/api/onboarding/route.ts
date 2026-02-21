@@ -3,6 +3,8 @@ import { getRedis, addEvent, type ScheduleEvent } from '@/lib/redis';
 import { getClaude } from '@/lib/claude';
 import { v4 as uuid } from 'uuid';
 
+export const maxDuration = 30; // Vercel: allow up to 30s for Claude calls
+
 interface OnboardingSurvey {
   name: string;
   type: 'builder' | 'operator' | 'learner' | 'hustler';
@@ -173,6 +175,45 @@ export async function POST(req: NextRequest) {
     console.log(`[Onboarding] Normalized: type=${normalizedType}, rhythm=${normalizedRhythm}, struggle=${normalizedStruggle}`);
 
     const claude = getClaude();
+
+    // Generate persona + schedule in parallel
+    const personaPromise = claude.messages.create({
+      model: 'claude-haiku-4-20250514',
+      max_tokens: 600,
+      messages: [{
+        role: 'user',
+        content: `Analyze this person and generate their productivity persona as JSON.
+
+Name: ${rawSurvey.name}, Type: ${normalizedType}, Brain turns on: ${normalizedRhythm}
+Non-negotiables: ${nonNegotiableText}, Struggle: ${struggleDesc}
+
+Respond ONLY with valid JSON:
+{
+  "archetype": "e.g. 'The Deep Work Machine'",
+  "archetypeEmoji": "single emoji",
+  "tagline": "one punchy sentence about how they work best",
+  "peakWindow": "ideal 2-3 hour focus window e.g. '8:00–11:00 AM'",
+  "coachingTone": "how DRAKO should talk to them, one sentence",
+  "keyProtections": ["2-3 specific schedule rules to enforce"],
+  "watchOuts": ["2 specific bad habits to watch for"],
+  "drakoGreeting": "DRAKO's first spoken line, personalized, under 20 words, warm and direct"
+}`,
+      }],
+    }).then(async (r) => {
+      try {
+        const text = r.content[0].type === 'text' ? r.content[0].text : '{}';
+        const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const parsed = JSON.parse(clean);
+        const persona = { userId: id, generatedAt: new Date().toISOString(), ...parsed };
+        await getRedis().set(`persona:${id}`, JSON.stringify(persona), 'EX', 60 * 60 * 24 * 7);
+        console.log(`[Onboarding] Persona generated: ${parsed.archetype}`);
+        return persona;
+      } catch {
+        console.error('[Onboarding] Persona parse failed');
+        return null;
+      }
+    }).catch(() => null); // never block onboarding if persona fails
+
     const response = await claude.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 800,
@@ -228,11 +269,17 @@ Respond ONLY with a JSON array, no markdown, no explanation:
 
     console.log(`[Onboarding] Created user ${id} with ${events.length} events`);
 
+    // Wait for persona (runs in parallel — usually done by now)
+    const persona = await personaPromise;
+
     const res = NextResponse.json({
       success: true,
       user,
       events,
-      message: `Welcome ${user.name}! DRAKO has built your personalized schedule.`,
+      persona,
+      message: persona
+        ? `Welcome ${user.name}! You're ${persona.archetype} ${persona.archetypeEmoji}`
+        : `Welcome ${user.name}! DRAKO has built your personalized schedule.`,
     });
 
     res.cookies.set('drako_user_id', id, {
