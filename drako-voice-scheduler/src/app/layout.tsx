@@ -44,7 +44,7 @@ export default function RootLayout({
         className={`${inter.variable} ${spaceGrotesk.variable} ${geistMono.variable} antialiased`}
         style={{ backgroundColor: 'var(--bg-primary)' }}
       >
-        <CopilotKit runtimeUrl="/api/copilotkit" showDevConsole={false}>
+        <CopilotKit runtimeUrl="/api/copilotkit" showDevConsole="never">
           {children}
         </CopilotKit>
       </body>
