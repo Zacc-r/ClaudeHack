@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { DrakoRobot } from '@/components/DrakoRobot';
 
@@ -72,8 +72,238 @@ function fmtDur(m: number) { if (m < 60) return `${m}m`; const h = Math.floor(m/
 interface Slot { id: string; emoji: string; label: string; color: string; startMinutes: number; durationMinutes: number; days: Day[] }
 
 const STEP = 30;
+const HOLD_DURATION = 1800; // 1.8 seconds
 const DEFAULT_ACTIVITIES = ['work','gym','deep_work','social'];
 
+// --- Hold-to-confirm button ---
+function HoldButton({ onConfirm, label, color }: { onConfirm: () => void; label: string; color: string }) {
+  const [progress, setProgress] = useState(0);
+  const [holding, setHolding] = useState(false);
+  const startRef = useRef(0);
+  const rafRef = useRef(0);
+  const doneRef = useRef(false);
+
+  const tick = useCallback(() => {
+    const elapsed = Date.now() - startRef.current;
+    const pct = Math.min(elapsed / HOLD_DURATION, 1);
+    setProgress(pct);
+    if (pct >= 1 && !doneRef.current) {
+      doneRef.current = true;
+      setHolding(false);
+      onConfirm();
+      return;
+    }
+    if (pct < 1) rafRef.current = requestAnimationFrame(tick);
+  }, [onConfirm]);
+
+  const start = useCallback(() => {
+    doneRef.current = false;
+    startRef.current = Date.now();
+    setHolding(true);
+    setProgress(0);
+    rafRef.current = requestAnimationFrame(tick);
+  }, [tick]);
+
+  const cancel = useCallback(() => {
+    cancelAnimationFrame(rafRef.current);
+    setHolding(false);
+    setProgress(0);
+  }, []);
+
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+
+  const circum = 2 * Math.PI * 22;
+
+  return (
+    <button
+      onPointerDown={start}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      className="relative w-full py-4 rounded-2xl font-bold text-lg text-white transition-all select-none touch-manipulation"
+      style={{
+        background: holding
+          ? `linear-gradient(135deg, ${color}, ${color}CC)`
+          : 'rgba(30,41,59,0.9)',
+        border: `2px solid ${holding ? color : '#334155'}`,
+        boxShadow: holding ? `0 0 30px ${color}50` : 'none',
+      }}
+    >
+      <div className="flex items-center justify-center gap-3">
+        {/* Progress ring */}
+        <svg width="28" height="28" className="shrink-0 -rotate-90">
+          <circle cx="14" cy="14" r="11" fill="none" stroke="#334155" strokeWidth="2.5" />
+          <circle cx="14" cy="14" r="11" fill="none" stroke={color} strokeWidth="2.5"
+            strokeDasharray={`${circum}`}
+            strokeDashoffset={`${circum * (1 - progress)}`}
+            strokeLinecap="round"
+            style={{ transition: holding ? 'none' : 'stroke-dashoffset 0.2s' }}
+          />
+          {progress >= 1 && <text x="14" y="14" textAnchor="middle" dominantBaseline="central" fill="white" fontSize="14" className="rotate-90 origin-center">✓</text>}
+        </svg>
+        <span>{holding ? 'Keep holding...' : label}</span>
+      </div>
+    </button>
+  );
+}
+
+// --- Weekly calendar grid for the summary ---
+function WeeklyCalendar({ slots }: { slots: Slot[] }) {
+  const hours = [6, 8, 10, 12, 14, 16, 18, 20, 22];
+  const dayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  return (
+    <div className="w-full max-w-md mx-auto">
+      <div className="grid gap-0" style={{ gridTemplateColumns: '32px repeat(7, 1fr)' }}>
+        {/* Header */}
+        <div />
+        {dayLetters.map((d, i) => (
+          <div key={i} className="text-center text-xs font-bold text-[#64748B] pb-2">{d}</div>
+        ))}
+
+        {/* Time rows */}
+        {hours.map(hour => (
+          <div key={hour} className="contents">
+            <div className="text-[10px] text-[#475569] text-right pr-2 leading-[40px]">
+              {hour % 12 || 12}{hour >= 12 ? 'p' : 'a'}
+            </div>
+            {DAYS.map((day, di) => {
+              const blocksHere = slots.filter(s =>
+                s.days.includes(day) &&
+                s.startMinutes < (hour + 2) * 60 &&
+                s.startMinutes + s.durationMinutes > hour * 60
+              );
+              return (
+                <div key={di} className="relative h-10 border-t border-[#1E293B]">
+                  {blocksHere.map(b => {
+                    const cellStart = hour * 60;
+                    const cellEnd = (hour + 2) * 60;
+                    const blockStart = Math.max(b.startMinutes, cellStart);
+                    const blockEnd = Math.min(b.startMinutes + b.durationMinutes, cellEnd);
+                    const topPct = ((blockStart - cellStart) / (cellEnd - cellStart)) * 100;
+                    const heightPct = ((blockEnd - blockStart) / (cellEnd - cellStart)) * 100;
+                    return (
+                      <div key={b.id} className="absolute inset-x-0.5 rounded-sm overflow-hidden"
+                        style={{ top: `${topPct}%`, height: `${Math.max(heightPct, 20)}%`, background: `${b.color}40`, borderLeft: `2px solid ${b.color}` }}
+                        title={`${b.emoji} ${b.label}\n${toDisplay(b.startMinutes)} – ${toDisplay(b.startMinutes + b.durationMinutes)}`}
+                      >
+                        <span className="text-[8px] px-0.5 truncate block" style={{ color: b.color }}>{b.emoji}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-2 mt-4 justify-center">
+        {slots.map(s => (
+          <div key={s.id} className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium"
+            style={{ background: `${s.color}15`, color: s.color, border: `1px solid ${s.color}30` }}>
+            {s.emoji} {s.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Chat input to modify schedule ---
+interface ChatMsg { role: 'user' | 'assistant'; text: string }
+
+function ScheduleChat({ slots, onSlotsChange }: { slots: Slot[]; onSlotsChange: (slots: Slot[]) => void }) {
+  const [messages, setMessages] = useState<ChatMsg[]>([
+    { role: 'assistant', text: "Tell me what to change. Try: \"move gym to 7am\", \"make work shorter\", or \"add reading on weekends\"" }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages]);
+
+  const send = useCallback(async () => {
+    const msg = input.trim();
+    if (!msg || loading) return;
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', text: msg }]);
+    setLoading(true);
+
+    try {
+      const resp = await fetch('/api/schedule/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: msg,
+          slots: slots.map(s => ({ id: s.id, label: s.label, emoji: s.emoji, startMinutes: s.startMinutes, durationMinutes: s.durationMinutes, days: s.days })),
+        }),
+      });
+      const data = await resp.json();
+      setMessages(prev => [...prev, { role: 'assistant', text: data.reply || 'Done!' }]);
+
+      if (data.slots) {
+        onSlotsChange(slots.map(s => {
+          const updated = data.slots.find((u: { id: string }) => u.id === s.id);
+          if (!updated) return s;
+          return { ...s, startMinutes: updated.startMinutes, durationMinutes: updated.durationMinutes, days: updated.days as Day[] };
+        }));
+      }
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', text: "Something went wrong. Try again?" }]);
+    }
+    setLoading(false);
+  }, [input, loading, slots, onSlotsChange]);
+
+  return (
+    <div className="w-full max-w-md mx-auto mt-6 rounded-2xl overflow-hidden" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid #1E293B' }}>
+      {/* Chat messages */}
+      <div ref={scrollRef} className="max-h-48 overflow-y-auto p-4 space-y-3">
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className="max-w-[85%] px-3 py-2 rounded-2xl text-sm"
+              style={{
+                background: m.role === 'user' ? 'linear-gradient(135deg,#38BDF8,#818CF8)' : 'rgba(30,41,59,0.8)',
+                color: 'white',
+                borderBottomRightRadius: m.role === 'user' ? 4 : 16,
+                borderBottomLeftRadius: m.role === 'assistant' ? 4 : 16,
+              }}>
+              {m.text}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="px-4 py-2 rounded-2xl text-sm" style={{ background: 'rgba(30,41,59,0.8)', color: '#64748B' }}>
+              <span className="animate-pulse">Thinking...</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Input */}
+      <div className="flex gap-2 p-3 border-t border-[#1E293B]">
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && send()}
+          placeholder="e.g. move gym to 7am..."
+          className="flex-1 px-4 py-3 rounded-xl bg-[#0F172A] text-white text-sm border border-[#334155] focus:border-[#38BDF8] focus:outline-none transition-colors"
+        />
+        <button onClick={send} disabled={loading || !input.trim()}
+          className="px-4 py-3 rounded-xl font-bold text-sm text-white disabled:opacity-30 transition-all"
+          style={{ background: 'linear-gradient(135deg,#38BDF8,#818CF8)' }}>
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ===== Main page =====
 export default function PlayPage() {
   const router = useRouter();
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -153,31 +383,45 @@ export default function PlayPage() {
     </div>
   );
 
-  // Done — summary
+  // ===== DONE — Calendar + Chat =====
   if (done) return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center" style={{ background: 'linear-gradient(135deg,#0F172A 0%,#1E1B4B 50%,#0F172A 100%)' }}>
-      <DrakoRobot size="xl" state="greeting" className="mb-6" />
-      <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-[#10B981] to-[#38BDF8] bg-clip-text text-transparent">
-        {userName ? `Perfect, ${userName}!` : 'Day mapped!'} 🗓️
+    <div className="min-h-screen flex flex-col items-center px-4 py-8 overflow-y-auto" style={{ background: 'linear-gradient(135deg,#0F172A 0%,#1E1B4B 50%,#0F172A 100%)' }}>
+      <DrakoRobot size="lg" state="greeting" className="mb-4" />
+
+      <h2 className="text-2xl font-bold mb-1 bg-gradient-to-r from-[#10B981] to-[#38BDF8] bg-clip-text text-transparent">
+        {userName ? `${userName}'s Week` : 'Your Week'} 🗓️
       </h2>
-      <p className="text-[#94A3B8] mb-6">{slots.length} block{slots.length !== 1 ? 's' : ''} placed</p>
-      <div className="w-full max-w-sm space-y-2 mb-8">
+      <p className="text-[#64748B] text-sm mb-6">{slots.length} blocks placed — tap a change below or chat to adjust</p>
+
+      {/* Weekly calendar */}
+      <WeeklyCalendar slots={slots} />
+
+      {/* Slot list with inline times */}
+      <div className="w-full max-w-md mx-auto mt-4 space-y-1.5">
         {slots.map(s => (
-          <div key={s.id} className="flex items-center justify-between px-4 py-2.5 rounded-xl" style={{ background: `${s.color}15`, border: `1px solid ${s.color}30` }}>
+          <div key={s.id} className="flex items-center justify-between px-4 py-2.5 rounded-xl" style={{ background: `${s.color}10`, border: `1px solid ${s.color}20` }}>
             <span className="text-sm font-medium" style={{ color: s.color }}>{s.emoji} {s.label}</span>
-            <span className="text-xs text-[#64748B]">{toDisplay(s.startMinutes)} – {toDisplay(s.startMinutes + s.durationMinutes)}</span>
+            <div className="text-right">
+              <div className="text-xs" style={{ color: `${s.color}CC` }}>{toDisplay(s.startMinutes)} – {toDisplay(s.startMinutes + s.durationMinutes)}</div>
+              <div className="text-[10px] text-[#475569]">{s.days.join(', ')}</div>
+            </div>
           </div>
         ))}
       </div>
+
+      {/* Chat to modify */}
+      <ScheduleChat slots={slots} onSlotsChange={setSlots} />
+
+      {/* Build button */}
       <button onClick={handleFinish} disabled={saving}
-        className="w-full max-w-sm px-8 py-5 rounded-2xl font-bold text-xl text-white transition-all hover:scale-[1.02] disabled:opacity-50"
+        className="w-full max-w-md mt-6 px-8 py-5 rounded-2xl font-bold text-lg text-white transition-all hover:scale-[1.02] disabled:opacity-50"
         style={{ background: 'linear-gradient(135deg,#38BDF8,#818CF8)', boxShadow: '0 0 40px rgba(56,189,248,0.3)' }}>
-        {saving ? 'Building schedule...' : '🎙️ Talk to DRAKO →'}
+        {saving ? 'Building schedule...' : 'Build My Schedule →'}
       </button>
     </div>
   );
 
-  // --- Active card ---
+  // ===== ACTIVE CARD =====
   return (
     <div className="min-h-screen flex flex-col px-4 py-6" style={{ background: 'linear-gradient(135deg,#0F172A 0%,#1E1B4B 50%,#0F172A 100%)' }}>
 
@@ -197,13 +441,12 @@ export default function PlayPage() {
         {current && (
           <div className="w-full max-w-sm rounded-3xl p-6" style={{ background: 'rgba(15,23,42,0.95)', border: `2px solid ${current.color}40`, boxShadow: `0 0 40px ${current.color}10, 0 16px 48px rgba(0,0,0,0.4)` }}>
 
-            {/* Emoji + label */}
             <div className="text-center mb-5">
               <span className="text-5xl block mb-2" style={{ filter: `drop-shadow(0 0 16px ${current.color}50)` }}>{current.emoji}</span>
               <h2 className="text-xl font-bold text-white">{current.label}</h2>
             </div>
 
-            {/* Start time controls */}
+            {/* Start time */}
             <div className="mb-4">
               <p className="text-xs text-[#475569] uppercase tracking-wider mb-2 text-center">Start Time</p>
               <div className="flex items-center justify-center gap-3">
@@ -215,7 +458,7 @@ export default function PlayPage() {
               </div>
             </div>
 
-            {/* Duration controls */}
+            {/* Duration */}
             <div className="mb-4">
               <p className="text-xs text-[#475569] uppercase tracking-wider mb-2 text-center">Duration</p>
               <div className="flex items-center justify-center gap-3">
@@ -227,7 +470,6 @@ export default function PlayPage() {
               </div>
             </div>
 
-            {/* End time display */}
             <p className="text-center text-sm text-[#64748B] mb-4">
               Ends at <span className="font-bold" style={{ color: current.color }}>{toDisplay(current.startMinutes + current.durationMinutes)}</span>
             </p>
@@ -249,12 +491,13 @@ export default function PlayPage() {
               </div>
             </div>
 
-            {/* Confirm button */}
-            <button onClick={confirm}
-              className="w-full py-4 rounded-2xl font-bold text-lg text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
-              style={{ background: `linear-gradient(135deg, ${current.color}, ${current.color}CC)`, boxShadow: `0 0 24px ${current.color}40` }}>
-              {cardIdx + 1 < slots.length ? `Lock In ${current.label} ✓` : `Finish — ${current.label} ✓`}
-            </button>
+            {/* Hold to confirm */}
+            <HoldButton
+              onConfirm={confirm}
+              label={cardIdx + 1 < slots.length ? `Hold to Lock In ${current.label}` : `Hold to Finish — ${current.label}`}
+              color={current.color}
+            />
+            <p className="text-center text-[10px] text-[#475569] mt-2">Press and hold for ~2 seconds</p>
           </div>
         )}
       </div>
