@@ -1,11 +1,16 @@
 import Redis from 'ioredis';
 
 const getRedisClient = () => {
-  const client = new Redis(process.env.REDIS_URL!, {
+  const url = process.env.REDIS_URL!;
+  const isTLS = url.startsWith('rediss://');
+  const client = new Redis(url, {
     maxRetriesPerRequest: 3,
+    connectTimeout: 5000,
+    enableOfflineQueue: false,
+    tls: isTLS ? { rejectUnauthorized: false } : undefined,
     retryStrategy(times) {
-      const delay = Math.min(times * 50, 2000);
-      return delay;
+      if (times > 3) return null; // stop retrying in serverless
+      return Math.min(times * 100, 1000);
     },
   });
   client.on('error', (err) => console.error('Redis error:', err));
