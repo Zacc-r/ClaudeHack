@@ -6,7 +6,7 @@ import { v4 as uuid } from 'uuid';
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { function_name, arguments: args } = body;
-  const userId = 'demo';
+  const userId = req.cookies.get('drako_user_id')?.value || 'demo';
   const today = new Date().toISOString().split('T')[0];
 
   try {

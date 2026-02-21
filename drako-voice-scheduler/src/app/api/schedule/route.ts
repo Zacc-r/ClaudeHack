@@ -4,7 +4,7 @@ import { v4 as uuid } from 'uuid';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get('userId') || 'demo';
+  const userId = searchParams.get('userId') || req.cookies.get('drako_user_id')?.value || 'demo';
   const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
   const events = await getSchedule(userId, date);
@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { title, start, end, date, userId = 'demo' } = body;
+  const { title, start, end, date } = body;
+  const userId = body.userId || req.cookies.get('drako_user_id')?.value || 'demo';
 
   if (!title || !start) {
     return NextResponse.json({ error: 'title and start are required' }, { status: 400 });
@@ -35,7 +36,8 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const body = await req.json();
-  const { eventId, date, userId = 'demo' } = body;
+  const { eventId, date } = body;
+  const userId = body.userId || req.cookies.get('drako_user_id')?.value || 'demo';
 
   if (!eventId || !date) {
     return NextResponse.json({ error: 'eventId and date are required' }, { status: 400 });

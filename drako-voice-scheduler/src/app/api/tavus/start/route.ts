@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createPersona, createConversation } from '@/lib/tavus';
-import { getSchedule } from '@/lib/redis';
+import { getSchedule, getUser } from '@/lib/redis';
 
 const DRAKO_SYSTEM_PROMPT = `You are DRAKO 🐉, a friendly and efficient voice AI scheduling assistant.
 Be warm, energetic, slightly playful. Concise and action-oriented.
@@ -72,17 +72,27 @@ const DRAKO_TOOLS = [
   }
 ];
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
+    const userId = req.cookies.get('drako_user_id')?.value || 'demo';
     const today = new Date().toISOString().split('T')[0];
-    const schedule = await getSchedule('demo', today);
-    const scheduleContext = schedule.length > 0
-      ? `Current schedule for today (${today}): ${schedule.map(e => `${e.start}${e.end ? '-' + e.end : ''} ${e.title}`).join(', ')}`
-      : `No events scheduled for today (${today}). Clean slate!`;
+    const schedule = await getSchedule(userId, today);
+    const user = await getUser(userId);
+    const userName = user?.name || 'friend';
+    const userContext = user
+      ? `User: ${user.name}. Role: ${user.role || 'unknown'}. Work style: ${user.workStyle || 'flexible'}. Priorities: ${user.priorities || 'general productivity'}.`
+      : '';
+    const scheduleContext = `${userContext}\n\n${
+      schedule.length > 0
+        ? `Current schedule for today (${today}): ${schedule.map(e => `${e.start}${e.end ? '-' + e.end : ''} ${e.title}`).join(', ')}`
+        : `No events scheduled for today (${today}). Clean slate!`
+    }`;
+
+    const personalizedPrompt = `${DRAKO_SYSTEM_PROMPT}\nGreet the user as "${userName}". Use their name naturally in conversation.`;
 
     const persona = await createPersona({
       name: 'DRAKO',
-      systemPrompt: DRAKO_SYSTEM_PROMPT,
+      systemPrompt: personalizedPrompt,
       context: scheduleContext,
       tools: DRAKO_TOOLS,
     });
