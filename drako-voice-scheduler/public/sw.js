@@ -1,5 +1,5 @@
 // DRAKO Service Worker — auto-update on deploy
-const CACHE = 'drako-v3';
+const CACHE = 'drako-v4';
 const STATIC = ['/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 // Install: cache static assets
