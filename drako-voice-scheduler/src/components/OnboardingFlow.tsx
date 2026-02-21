@@ -47,17 +47,15 @@ const ROLES = [
   { id: 'other', label: 'Other', icon: '✨' },
 ];
 
-const WAKE_TIMES = ['5am', '6am', '7am', '8am', '9am', '10am', '11am'] as const;
+const WAKE_TIMES = ['6am', '7am', '8am', '9am', '10am'] as const;
 
 const CATEGORIES = [
   { id: 'exercise', label: 'Exercise', emoji: '🏋️', color: '#EF4444' },
   { id: 'deep_work', label: 'Deep Work', emoji: '🧠', color: '#14B8A6' },
   { id: 'learning', label: 'Learning', emoji: '📖', color: '#F59E0B' },
-  { id: 'creative', label: 'Creative Time', emoji: '🎨', color: '#EC4899' },
+  { id: 'creative', label: 'Creative', emoji: '🎨', color: '#EC4899' },
   { id: 'social', label: 'Social', emoji: '👥', color: '#8B5CF6' },
-  { id: 'meditation', label: 'Meditation', emoji: '🧘', color: '#6366F1' },
-  { id: 'side_project', label: 'Side Project', emoji: '🚀', color: '#10B981' },
-  { id: 'entertainment', label: 'Entertainment', emoji: '🎮', color: '#F97316' },
+  { id: 'wellness', label: 'Wellness', emoji: '🧘', color: '#6366F1' },
 ];
 
 const STRUGGLES = [
@@ -318,7 +316,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                   <button
                     key={time}
                     onClick={() => selectWakeTime(time)}
-                    className="w-20 h-20 rounded-2xl font-bold text-lg transition-all hover:scale-105 active:scale-95 flex flex-col items-center justify-center"
+                    className="w-16 h-16 rounded-xl font-bold text-base transition-all hover:scale-105 active:scale-95 flex flex-col items-center justify-center"
                     style={{
                       background: isSelected 
                         ? 'linear-gradient(135deg, #38BDF8, #818CF8)' 
@@ -328,10 +326,10 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                       boxShadow: isSelected ? '0 0 20px rgba(56, 189, 248, 0.4)' : 'none',
                     }}
                   >
-                    <span className="text-2xl mb-1">
+                    <span className="text-xl mb-0.5">
                       {parseInt(time) <= 6 ? '🌙' : parseInt(time) <= 8 ? '🌅' : '☀️'}
                     </span>
-                    <span className="text-sm uppercase">{time}</span>
+                    <span className="text-xs uppercase">{time}</span>
                   </button>
                 );
               })}
@@ -349,29 +347,27 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             </h2>
             <p className="text-[#94A3B8] mb-6">Pick up to 4 priorities</p>
 
-            <div className="grid grid-cols-2 gap-3 w-full max-w-md mb-8">
+            <div className="grid grid-cols-3 gap-2 w-full max-w-sm mb-6">
               {CATEGORIES.map(({ id, label, emoji, color }) => {
                 const isSelected = state.nonNegotiables.includes(id);
                 return (
                   <button
                     key={id}
                     onClick={() => toggleCategory(id)}
-                    className="p-4 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] text-left relative overflow-hidden"
+                    className="p-3 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex flex-col items-center justify-center relative min-h-[72px]"
                     style={{
                       background: isSelected 
                         ? `linear-gradient(135deg, ${color}20, ${color}10)` 
                         : 'rgba(30, 41, 59, 0.6)',
                       border: `2px solid ${isSelected ? color : '#334155'}`,
-                      boxShadow: isSelected ? `0 0 20px ${color}30` : 'none',
+                      boxShadow: isSelected ? `0 0 16px ${color}30` : 'none',
                     }}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{emoji}</span>
-                      <span className="font-medium text-white text-sm">{label}</span>
-                    </div>
+                    <span className="text-2xl mb-1">{emoji}</span>
+                    <span className="font-medium text-white text-xs text-center leading-tight">{label}</span>
                     {isSelected && (
                       <div 
-                        className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                        className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
                         style={{ backgroundColor: color }}
                       >
                         ✓

@@ -46,6 +46,22 @@ h1, h2, h3, h4, h5, h6 {
   color: #E2E8F0 !important;
 }
 
+/* Hide CopilotKit dev notification banner */
+[class*="CopilotDevConsole"],
+[class*="copilot-dev"],
+[class*="DevConsole"],
+div[style*="CopilotKit v"],
+div:has(> span:contains("CopilotKit")) {
+  display: none !important;
+}
+
+/* Hide the floating notification toast */
+[role="status"][class*="toast"],
+[class*="announcement"],
+div[style*="position: fixed"][style*="top: 0"] {
+  display: none !important;
+}
+
 [class*="copilotkit"] input,
 [class*="copilotkit"] textarea {
   background-color: #1E293B !important;

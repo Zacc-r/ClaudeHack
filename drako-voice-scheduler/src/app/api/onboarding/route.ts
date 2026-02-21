@@ -214,12 +214,15 @@ Respond ONLY with valid JSON:
       }
     }).catch(() => null); // never block onboarding if persona fails
 
-    const response = await claude.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 800,
-      messages: [{
-        role: 'user',
-        content: `Generate a realistic daily schedule for today (${today}, ${dayOfWeek}) for this person:
+    let events: ScheduleEvent[] = [];
+
+    try {
+      const response = await claude.messages.create({
+        model: 'claude-haiku-4-5',
+        max_tokens: 800,
+        messages: [{
+          role: 'user',
+          content: `Generate a realistic daily schedule for today (${today}, ${dayOfWeek}) for this person:
 
 Name: ${rawSurvey.name}
 Type: ${normalizedType} (${typeDesc})
@@ -240,16 +243,13 @@ Rules:
 
 Respond ONLY with a JSON array, no markdown, no explanation:
 [{"title": "...", "start": "HH:MM", "end": "HH:MM"}]`,
-      }],
-    });
+        }],
+      });
 
-    let events: ScheduleEvent[] = [];
-    
-    try {
       const text = response.content[0].type === 'text' ? response.content[0].text : '[]';
       const jsonMatch = text.match(/\[[\s\S]*\]/);
       const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
-      
+
       events = parsed.map((e: { title: string; start: string; end: string }, i: number) => ({
         id: `evt_${uuid().slice(0, 8)}`,
         title: e.title,
@@ -258,8 +258,8 @@ Respond ONLY with a JSON array, no markdown, no explanation:
         date: today,
         color: COLORS[i % COLORS.length],
       }));
-    } catch (parseError) {
-      console.error('[Onboarding] Failed to parse Claude response, using fallback:', parseError);
+    } catch (claudeError) {
+      console.error('[Onboarding] Claude failed, using fallback schedule:', claudeError);
       events = generateFallbackSchedule({ rhythm: normalizedRhythm, nonNegotiables: normalizedNonNegs }, today);
     }
 
