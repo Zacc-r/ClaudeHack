@@ -1,0 +1,20 @@
+{
+  "project": "DRAKO Voice Schedule Builder",
+  "hackathon_date": "2026-02-21",
+  "build_window": {
+    "start": "10:45 AM",
+    "end": "6:30 PM",
+    "total_minutes": 465
+  },
+  "current_phase": 0,
+  "phase_status": "in_progress",
+  "apis": {
+    "tavus": { "status": "not_tested", "key_set": false },
+    "claude": { "status": "not_tested", "key_set": false }
+  },
+  "repo": {
+    "name": "ClaudeHack",
+    "url": "https://github.com/Zacc-r/ClaudeHack",
+    "initialized": true
+  }
+}
