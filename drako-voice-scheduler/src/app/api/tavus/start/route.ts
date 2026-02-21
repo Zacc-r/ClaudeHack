@@ -103,7 +103,7 @@ async function createTavusPersona(config: {
       pipeline_mode: 'full',
       system_prompt: config.systemPrompt,
       context: config.context,
-      default_replica_id: process.env.TAVUS_REPLICA_ID || 're8e740a42',
+      default_replica_id: process.env.TAVUS_REPLICA_ID || 'rf4703150052',
       layers: {
         llm: {
           tools: config.tools,
@@ -131,7 +131,7 @@ async function createTavusConversation(config: {
     },
     body: JSON.stringify({
       persona_id: config.personaId,
-      replica_id: process.env.TAVUS_REPLICA_ID || 're8e740a42',
+      replica_id: process.env.TAVUS_REPLICA_ID || 'rf4703150052',
       conversational_context: config.context,
       callback_url: config.callbackUrl,
       properties: {
