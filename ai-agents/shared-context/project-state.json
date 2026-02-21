@@ -6,8 +6,8 @@
     "end": "6:30 PM",
     "total_minutes": 465
   },
-  "current_phase": 0,
-  "phase_status": "in_progress",
+  "current_phase": 1,
+  "phase_status": "complete",
   "apis": {
     "tavus": { "status": "not_tested", "key_set": false },
     "claude": { "status": "not_tested", "key_set": true },

@@ -1,2 +1,23 @@
 .vercel
 .env*.local
+
+# OpenClaw / AI outputs
+openclaw*.log
+claude*.log
+*.out
+*.trace
+.cursor-prompts/openclaw-runs/**
+!.cursor-prompts/openclaw-runs/README.md
+
+# Script outputs
+scripts/tmp/
+tmp/
+
+# Scratch files
+*_scratch.md
+*_notes.md
+*_tmp.*
+*.backup
+*.bak
+*.tmp
+*.disabled

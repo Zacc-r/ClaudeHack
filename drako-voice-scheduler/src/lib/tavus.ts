@@ -1,127 +1,72 @@
-const TAVUS_API_URL = 'https://api.tavus.io/v2';
+const TAVUS_BASE = 'https://tavusapi.com/v2';
 
-function getHeaders(): Record<string, string> {
-  const apiKey = process.env.TAVUS_API_KEY;
-  if (!apiKey) {
-    throw new Error('TAVUS_API_KEY environment variable is required');
-  }
-  return {
-    'Content-Type': 'application/json',
-    'x-api-key': apiKey,
-  };
-}
+const headers = () => ({
+  'Content-Type': 'application/json',
+  'x-api-key': process.env.TAVUS_API_KEY!,
+});
 
-interface Tool {
-  type: string;
-  function: {
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-  };
-}
-
-interface CreatePersonaParams {
+export const createPersona = async (config: {
   name: string;
   systemPrompt: string;
-  context: string;
-  tools: Tool[];
-}
-
-interface PersonaResponse {
-  persona_id: string;
-  persona_name: string;
-}
-
-export async function createPersona(params: CreatePersonaParams): Promise<PersonaResponse> {
-  const response = await fetch(`${TAVUS_API_URL}/personas`, {
+  context?: string;
+  replicaId?: string;
+  tools?: any[];
+}) => {
+  const res = await fetch(`${TAVUS_BASE}/personas`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: headers(),
     body: JSON.stringify({
-      persona_name: params.name,
-      system_prompt: params.systemPrompt,
-      context: params.context,
-      default_replica_id: process.env.TAVUS_REPLICA_ID,
+      persona_name: config.name,
+      pipeline_mode: 'full',
+      system_prompt: config.systemPrompt,
+      context: config.context || '',
+      default_replica_id: config.replicaId || 're8e740a42',
       layers: {
         llm: {
-          model: 'tavus-gpt-4o',
-          tools: params.tools,
+          tools: config.tools || [],
+        },
+        tts: {
+          tts_engine: 'cartesia',
+          tts_emotion_control: true,
         },
       },
     }),
   });
+  return res.json();
+};
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Tavus createPersona failed: ${response.status} ${error}`);
-  }
-
-  return response.json();
-}
-
-export async function listPersonas(): Promise<PersonaResponse[]> {
-  const response = await fetch(`${TAVUS_API_URL}/personas`, {
-    method: 'GET',
-    headers: getHeaders(),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Tavus listPersonas failed: ${response.status} ${error}`);
-  }
-
-  const data = await response.json();
-  return data.data || [];
-}
-
-interface CreateConversationParams {
+export const createConversation = async (config: {
   personaId: string;
-  context: string;
-  callbackUrl: string;
-}
-
-interface ConversationResponse {
-  conversation_id: string;
-  conversation_url: string;
-}
-
-export async function createConversation(params: CreateConversationParams): Promise<ConversationResponse> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  
-  const response = await fetch(`${TAVUS_API_URL}/conversations`, {
+  replicaId?: string;
+  context?: string;
+  callbackUrl?: string;
+}) => {
+  const res = await fetch(`${TAVUS_BASE}/conversations`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: headers(),
     body: JSON.stringify({
-      persona_id: params.personaId,
-      conversation_name: `DRAKO Session ${new Date().toISOString()}`,
-      conversational_context: params.context,
-      callback_url: params.callbackUrl,
+      persona_id: config.personaId,
+      replica_id: config.replicaId || 're8e740a42',
+      conversational_context: config.context || '',
+      callback_url: config.callbackUrl || '',
       properties: {
         max_call_duration: 600,
-        enable_recording: true,
-        apply_greenscreen: false,
-        language: 'english',
-        enable_closed_captions: true,
-        tools_callback_url: `${appUrl}/api/tavus/tools`,
+        participant_left_timeout: 30,
       },
     }),
   });
+  return res.json();
+};
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Tavus createConversation failed: ${response.status} ${error}`);
-  }
+export const listPersonas = async () => {
+  const res = await fetch(`${TAVUS_BASE}/personas`, { headers: headers() });
+  return res.json();
+};
 
-  return response.json();
-}
-
-export async function endConversation(conversationId: string): Promise<void> {
-  const response = await fetch(`${TAVUS_API_URL}/conversations/${conversationId}/end`, {
+export const endConversation = async (conversationId: string) => {
+  const res = await fetch(`${TAVUS_BASE}/conversations/${conversationId}/end`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: headers(),
   });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Tavus endConversation failed: ${response.status} ${error}`);
-  }
-}
+  return res.json();
+};

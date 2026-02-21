@@ -1,66 +1,65 @@
 import Redis from 'ioredis';
 
+const getRedisClient = () => {
+  const client = new Redis(process.env.REDIS_URL!, {
+    maxRetriesPerRequest: 3,
+    retryStrategy(times) {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+  });
+  client.on('error', (err) => console.error('Redis error:', err));
+  return client;
+};
+
+// Singleton for main operations
+let redis: Redis | null = null;
+export const getRedis = () => {
+  if (!redis) redis = getRedisClient();
+  return redis;
+};
+
+// Fresh client for pub/sub (subscribers need dedicated connections)
+export const createSubscriber = () => getRedisClient();
+
+// Schedule helpers
+export const SCHEDULE_KEY = (userId: string, date: string) => `schedule:${userId}:${date}`;
+
+export const timeToMinutes = (time: string): number => {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+};
+
 export interface ScheduleEvent {
   id: string;
   title: string;
   start: string;
-  end: string | null;
+  end?: string;
   date: string;
   color?: string;
 }
 
-let redis: Redis | null = null;
-let subscriber: Redis | null = null;
+export const addEvent = async (userId: string, event: ScheduleEvent) => {
+  const r = getRedis();
+  const score = timeToMinutes(event.start);
+  await r.zadd(SCHEDULE_KEY(userId, event.date), score, JSON.stringify(event));
+  await r.publish('schedule:updates', JSON.stringify({ type: 'add', event, timestamp: new Date().toISOString() }));
+  return event;
+};
 
-export function getRedis(): Redis {
-  if (!redis) {
-    redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
-  }
-  return redis;
-}
+export const getSchedule = async (userId: string, date: string): Promise<ScheduleEvent[]> => {
+  const r = getRedis();
+  const raw = await r.zrangebyscore(SCHEDULE_KEY(userId, date), 0, 1440);
+  return raw.map((s) => JSON.parse(s));
+};
 
-export function createSubscriber(): Redis {
-  return new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
-}
-
-export function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
-}
-
-function scheduleKey(userId: string, date: string): string {
-  return `schedule:${userId}:${date}`;
-}
-
-export async function getSchedule(userId: string, date: string): Promise<ScheduleEvent[]> {
-  const redis = getRedis();
-  const data = await redis.get(scheduleKey(userId, date));
-  if (!data) return [];
-  try {
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
-}
-
-export async function addEvent(userId: string, event: ScheduleEvent): Promise<void> {
-  const redis = getRedis();
-  const key = scheduleKey(userId, event.date);
-  const events = await getSchedule(userId, event.date);
-  events.push(event);
-  events.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-  await redis.set(key, JSON.stringify(events));
-  await redis.publish('schedule:updates', JSON.stringify({ type: 'add', userId, event }));
-}
-
-export async function removeEvent(userId: string, date: string, eventId: string): Promise<ScheduleEvent | null> {
-  const redis = getRedis();
-  const key = scheduleKey(userId, date);
+export const removeEvent = async (userId: string, date: string, eventId: string) => {
+  const r = getRedis();
   const events = await getSchedule(userId, date);
-  const index = events.findIndex(e => e.id === eventId);
-  if (index === -1) return null;
-  const [removed] = events.splice(index, 1);
-  await redis.set(key, JSON.stringify(events));
-  await redis.publish('schedule:updates', JSON.stringify({ type: 'remove', userId, event: removed }));
-  return removed;
-}
+  const target = events.find((e) => e.id === eventId);
+  if (target) {
+    await r.zrem(SCHEDULE_KEY(userId, date), JSON.stringify(target));
+    await r.publish('schedule:updates', JSON.stringify({ type: 'remove', event: target, timestamp: new Date().toISOString() }));
+  }
+  return target;
+};
