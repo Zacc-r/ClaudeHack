@@ -27,6 +27,7 @@ export default function SchedulePage() {
   const [speaker, setSpeaker] = useState<'drako' | 'user' | 'idle'>('idle');
   const [isActive, setIsActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -68,63 +69,91 @@ export default function SchedulePage() {
     load();
   }, [router]);
 
-  // SSE for real-time updates
+  // SSE for real-time updates with reconnection
   useEffect(() => {
     if (!user) return;
-    const es = new EventSource('/api/schedule/stream');
-    es.onopen = () => setStatus('active');
-    es.onmessage = (e) => {
-      try {
-        const update = JSON.parse(e.data);
-        if (update.type === 'conversation_started') { setStatus('active'); return; }
-        if (update.type === 'conversation_ended') {
-          setStatus('ready'); setConversationUrl(null); setIsActive(false); setSpeaker('idle'); return;
-        }
-        if (update.type === 'speaker_change' && update.speaker) {
-          setSpeaker(update.speaker as 'drako' | 'user' | 'idle'); return;
-        }
-        if (update.type === 'add' && update.event) {
-          setEvents(prev => {
-            if (prev.some(ev => ev.id === update.event.id)) return prev;
-            return [...prev, update.event].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-          });
-          setNewEventIds(prev => new Set([...prev, update.event.id]));
-          setTimeout(() => setNewEventIds(prev => { const n = new Set(prev); n.delete(update.event.id); return n; }), 800);
-        }
-        if (update.type === 'remove' && update.event) {
-          setEvents(prev => prev.filter(ev => ev.id !== update.event.id));
-        }
-        if (update.type === 'move' && update.event) {
-          setEvents(prev => {
-            const filtered = prev.filter(ev => ev.id !== update.event.id);
-            return [...filtered, update.event].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-          });
-          setNewEventIds(prev => new Set([...prev, update.event.id]));
-          setTimeout(() => setNewEventIds(prev => { const n = new Set(prev); n.delete(update.event.id); return n; }), 800);
-        }
-      } catch { /* heartbeat */ }
+    
+    let es: EventSource | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_DELAY = 30000;
+    
+    const connect = () => {
+      es = new EventSource('/api/schedule/stream');
+      
+      es.onopen = () => {
+        setStatus('ready');
+        reconnectAttempts = 0;
+      };
+      
+      es.onmessage = (e) => {
+        try {
+          const update = JSON.parse(e.data);
+          if (update.type === 'conversation_started') { setStatus('active'); return; }
+          if (update.type === 'conversation_ended') {
+            setStatus('ready'); setConversationUrl(null); setIsActive(false); setSpeaker('idle'); setConnectionError(null); return;
+          }
+          if (update.type === 'speaker_change' && update.speaker) {
+            setSpeaker(update.speaker as 'drako' | 'user' | 'idle'); return;
+          }
+          if (update.type === 'add' && update.event) {
+            setEvents(prev => {
+              if (prev.some(ev => ev.id === update.event.id)) return prev;
+              return [...prev, update.event].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+            });
+            setNewEventIds(prev => new Set([...prev, update.event.id]));
+            setTimeout(() => setNewEventIds(prev => { const n = new Set(prev); n.delete(update.event.id); return n; }), 800);
+          }
+          if (update.type === 'remove' && update.event) {
+            setEvents(prev => prev.filter(ev => ev.id !== update.event.id));
+          }
+          if (update.type === 'move' && update.event) {
+            setEvents(prev => {
+              const filtered = prev.filter(ev => ev.id !== update.event.id);
+              return [...filtered, update.event].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+            });
+            setNewEventIds(prev => new Set([...prev, update.event.id]));
+            setTimeout(() => setNewEventIds(prev => { const n = new Set(prev); n.delete(update.event.id); return n; }), 800);
+          }
+        } catch { /* heartbeat or invalid JSON */ }
+      };
+      
+      es.onerror = () => {
+        es?.close();
+        setStatus('error');
+        reconnectAttempts++;
+        const delay = Math.min(3000 * Math.pow(2, reconnectAttempts - 1), MAX_RECONNECT_DELAY);
+        reconnectTimer = setTimeout(connect, delay);
+      };
     };
-    es.onerror = () => setStatus('error');
-    return () => es.close();
+    
+    connect();
+    
+    return () => {
+      es?.close();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+    };
   }, [user]);
 
   const startConversation = useCallback(async () => {
     setIsConnecting(true);
+    setConnectionError(null);
     try {
       const res = await fetch('/api/tavus/start', { method: 'POST' });
       const data = await res.json();
       if (data.success && data.conversationUrl) {
         setConversationUrl(data.conversationUrl);
+        setConnectionError(null);
         setIsActive(true);
         setSpeaker('drako');
         setStatus('active');
       } else {
+        setConnectionError(data.error || data.hint || 'Failed to connect to DRAKO. Please try again.');
         setStatus('error');
-        alert(`Failed to start: ${data.error || 'Unknown error'}`);
       }
     } catch (err) {
+      setConnectionError(`Connection failed: ${err instanceof Error ? err.message : 'Unknown error'}. Check your internet and try again.`);
       setStatus('error');
-      alert(`Connection error: ${err instanceof Error ? err.message : 'Unknown'}`);
     } finally {
       setIsConnecting(false);
     }
@@ -210,6 +239,7 @@ export default function SchedulePage() {
             conversationUrl={conversationUrl}
             isActive={isActive}
             isConnecting={isConnecting}
+            connectionError={connectionError}
             speaker={speaker}
             userName={user.name}
             onStartConversation={startConversation}

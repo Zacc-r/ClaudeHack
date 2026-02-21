@@ -7,6 +7,7 @@ interface VideoCallProps {
   conversationUrl: string | null;
   isActive: boolean;
   isConnecting?: boolean;
+  connectionError?: string | null;
   speaker: 'drako' | 'user' | 'idle';
   userName?: string;
   onStartConversation: () => void;
@@ -17,6 +18,7 @@ export function VideoCall({
   conversationUrl,
   isActive,
   isConnecting,
+  connectionError,
   speaker,
   userName,
   onStartConversation,
@@ -38,7 +40,24 @@ export function VideoCall({
           backdropFilter: 'blur(20px)',
         }}
       >
-        {conversationUrl && !isConnecting ? (
+        {connectionError && !isConnecting ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-8">
+            <div className="text-5xl">😔</div>
+            <div className="text-center">
+              <p className="text-lg font-semibold text-white mb-2">Connection Failed</p>
+              <p className="text-sm text-[#94A3B8] max-w-xs">{connectionError}</p>
+            </div>
+            <button
+              onClick={onStartConversation}
+              className="px-8 py-4 rounded-2xl font-bold text-white transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: 'linear-gradient(135deg, #38BDF8, #818CF8)',
+              }}
+            >
+              Try Again
+            </button>
+          </div>
+        ) : conversationUrl && !isConnecting ? (
           <iframe
             src={conversationUrl}
             className="absolute inset-0 w-full h-full rounded-2xl"

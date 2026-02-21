@@ -24,19 +24,54 @@ function getCurrentMinuteOffset(): number {
   return (minutes - 7 * 60) * (HOUR_HEIGHT / 60);
 }
 
+function computeStats(events: ScheduleEvent[]) {
+  let totalMinutes = 0;
+  let focusCount = 0;
+  let earliestStart = '';
+
+  for (const e of events) {
+    if (!e.end) continue;
+    const [sh, sm] = e.start.split(':').map(Number);
+    const [eh, em] = e.end.split(':').map(Number);
+    totalMinutes += (eh * 60 + em) - (sh * 60 + sm);
+
+    if (/focus|deep|brain|🧠/i.test(e.title)) focusCount++;
+
+    if (!earliestStart || e.start < earliestStart) earliestStart = e.start;
+  }
+
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  const totalFormatted = hours > 0 ? `${hours}h ${mins > 0 ? `${mins}m` : ''}`.trim() : `${mins}m`;
+
+  const formatTime = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`;
+  };
+
+  return {
+    totalFormatted,
+    focusCount,
+    earliestStart: earliestStart ? formatTime(earliestStart) : '--',
+  };
+}
+
 export function ScheduleView({ events, newEventIds, onRemoveEvent }: ScheduleViewProps) {
   const nowOffset = getCurrentMinuteOffset();
   const showNowLine = nowOffset >= 0 && nowOffset <= HOURS.length * HOUR_HEIGHT;
+  const stats = events.length > 0 ? computeStats(events) : null;
 
   return (
     <div
       className="flex-1 overflow-y-auto scrollbar-thin"
-      style={{ 
+      style={{
         background: 'linear-gradient(180deg, rgba(10, 10, 15, 0.95), rgba(15, 23, 42, 0.9))',
       }}
     >
       <div className="p-4 lg:p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-white">
             Today&apos;s Schedule
           </h2>
@@ -45,6 +80,31 @@ export function ScheduleView({ events, newEventIds, onRemoveEvent }: ScheduleVie
             {events.length} event{events.length !== 1 ? 's' : ''}
           </div>
         </div>
+
+        {stats && (
+          <div className="flex gap-2 mb-6 overflow-x-auto scrollbar-none">
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap"
+              style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38BDF8', border: '1px solid rgba(56, 189, 248, 0.3)' }}
+            >
+              <span>⏱</span> {stats.totalFormatted} scheduled
+            </div>
+            {stats.focusCount > 0 && (
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap"
+                style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
+              >
+                <span>🧠</span> {stats.focusCount} focus block{stats.focusCount !== 1 ? 's' : ''}
+              </div>
+            )}
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap"
+              style={{ backgroundColor: 'rgba(129, 140, 248, 0.15)', color: '#818CF8', border: '1px solid rgba(129, 140, 248, 0.3)' }}
+            >
+              <span>🌅</span> Starts {stats.earliestStart}
+            </div>
+          </div>
+        )}
 
         <div
           className="relative"
