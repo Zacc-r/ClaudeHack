@@ -21,3 +21,4 @@ tmp/
 *.bak
 *.tmp
 *.disabled
+tavus-mcp/

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "figma": {
+      "url": "https://mcp.figma.com/mcp"
+    },
+    "tavus-mcp": {
+      "command": "node",
+      "args": ["/Users/zacc/Documents/Hackathon/tavus-mcp/build/index.js"],
+      "env": {
+        "TAVUS_API_KEY": "497076457f424eb7ab2679c5d78c9a05"
+      }
+    }
+  }
+}
