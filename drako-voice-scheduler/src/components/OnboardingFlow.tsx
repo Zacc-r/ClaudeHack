@@ -228,12 +228,12 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       case 0:
         return (
           <div key="step-0" className="animate-fadeInUp flex flex-col items-center text-center px-6">
-            <DrakoRobot size="xl" state={state.robotState} className="mb-8" />
+            <DrakoRobot size="md" state={state.robotState} className="mb-4" />
             
-            <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-[#38BDF8] to-[#818CF8] bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-[#38BDF8] to-[#818CF8] bg-clip-text text-transparent">
               Hey! I&apos;m DRAKO 🤖
             </h1>
-            <p className="text-lg text-[#94A3B8] mb-10 max-w-md">
+            <p className="text-base text-[#94A3B8] mb-6 max-w-md">
               Your AI scheduling companion. Let&apos;s build your perfect day together.
             </p>
 
@@ -245,13 +245,13 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                   onChange={(e) => setState(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="What's your name?"
                   autoFocus
-                  className="w-full px-6 py-5 rounded-2xl text-xl outline-none transition-all bg-[#1E293B]/50 text-white placeholder:text-[#475569] border-2 border-[#334155] focus:border-[#38BDF8] focus:shadow-[0_0_30px_rgba(56,189,248,0.2)]"
+                  className="w-full px-5 py-4 rounded-xl text-lg outline-none transition-all bg-[#1E293B]/50 text-white placeholder:text-[#475569] border-2 border-[#334155] focus:border-[#38BDF8] focus:shadow-[0_0_30px_rgba(56,189,248,0.2)]"
                 />
               </div>
               <button
                 type="submit"
                 disabled={!state.name.trim()}
-                className="w-full mt-5 px-8 py-5 rounded-2xl font-bold text-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+                className="w-full mt-4 px-6 py-4 rounded-xl font-bold text-base transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
                 style={{
                   background: state.name.trim() 
                     ? 'linear-gradient(135deg, #38BDF8, #818CF8)' 
@@ -269,7 +269,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       case 1:
         return (
           <div key="step-1" className="animate-fadeInUp flex flex-col items-center text-center px-6">
-            <DrakoRobot size="lg" state={state.robotState} className="mb-6" />
+            <DrakoRobot size="md" state={state.robotState} className="mb-4" />
             
             <h2 className="text-2xl font-bold mb-2 text-white">
               Nice to meet you, {state.name}!
@@ -304,7 +304,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       case 2:
         return (
           <div key="step-2" className="animate-fadeInUp flex flex-col items-center text-center px-6">
-            <DrakoRobot size="lg" state={state.robotState} className="mb-6" />
+            <DrakoRobot size="md" state={state.robotState} className="mb-4" />
             
             <h2 className="text-2xl font-bold mb-2 text-white">
               When do you wake up?
@@ -402,7 +402,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       case 4:
         return (
           <div key="step-4" className="animate-fadeInUp flex flex-col items-center text-center px-6">
-            <DrakoRobot size="lg" state={state.robotState} className="mb-6" />
+            <DrakoRobot size="md" state={state.robotState} className="mb-4" />
             
             <h2 className="text-2xl font-bold mb-2 text-white">
               What&apos;s your biggest struggle?
@@ -545,7 +545,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center overflow-hidden"
+      className="fixed inset-0 flex items-center justify-center"
       style={{
         background: 'linear-gradient(135deg, #0F172A 0%, #1E1B4B 50%, #0F172A 100%)',
       }}
@@ -561,7 +561,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         />
       </div>
 
-      <div className="relative z-10 w-full max-w-lg py-16">
+      <div className="relative z-10 w-full max-w-lg px-4 max-h-[90vh] overflow-y-auto">
         {renderStep()}
       </div>
       

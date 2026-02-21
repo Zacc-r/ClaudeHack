@@ -78,6 +78,11 @@ export default function Home() {
           return;
         }
 
+        if (update.type === 'speaker_change' && update.speaker) {
+          setSpeaker(update.speaker as 'drako' | 'user' | 'idle');
+          return;
+        }
+
         if (update.type === 'add' && update.event) {
           setEvents(prev => {
             if (prev.some(ev => ev.id === update.event.id)) return prev;
@@ -258,22 +263,6 @@ export default function Home() {
             onStartConversation={startConversation}
             onEndConversation={endConversation}
           />
-
-          {conversationUrl && (
-            <div className="mt-4 flex gap-3">
-              <button
-                onClick={() => setSpeaker(s => s === 'user' ? 'drako' : 'user')}
-                className="flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
-                style={{
-                  backgroundColor: 'rgba(30, 41, 59, 0.8)',
-                  color: 'var(--text-secondary)',
-                  border: '1px solid #334155',
-                }}
-              >
-                Toggle Speaker (Demo)
-              </button>
-            </div>
-          )}
         </section>
 
         {/* Gradient Divider */}
