@@ -310,7 +310,7 @@ export default function SchedulePage() {
         {rebuilding && (
           <div className="flex-shrink-0 flex items-center justify-center gap-2 py-2 mx-3 rounded-lg"
             style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid #38BDF820' }}>
-            <DrakoRobot size="xs" state="thinking" />
+            <DrakoRobot size="sm" state="thinking" />
             <span className="text-xs text-[#38BDF8] font-medium animate-pulse">Building all 7 days...</span>
           </div>
         )}
