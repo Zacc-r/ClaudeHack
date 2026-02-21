@@ -9,32 +9,40 @@ export function PWAUpdater() {
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
-    navigator.serviceWorker.ready.then(registration => {
+    // Register service worker
+    navigator.serviceWorker.register('/sw.js').then(registration => {
       setReg(registration);
 
+      // New SW found while app is running
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
         if (!newWorker) return;
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // New version available
             setShowBanner(true);
           }
         });
       });
+
+      // Already a waiting SW (user came back after a while)
+      if (registration.waiting) setShowBanner(true);
+
+      // Periodically check for updates (every 5 min)
+      setInterval(() => registration.update(), 5 * 60 * 1000);
     });
 
-    // Also check if there's already a waiting SW
-    navigator.serviceWorker.getRegistration().then(r => {
-      if (r?.waiting) setShowBanner(true);
+    // Reload when new SW takes control
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
     });
   }, []);
 
   const handleUpdate = () => {
     if (reg?.waiting) {
       reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+      window.location.reload();
     }
-    window.location.reload();
   };
 
   if (!showBanner) return null;
@@ -46,14 +54,15 @@ export function PWAUpdater() {
         background: 'linear-gradient(135deg, rgba(56,189,248,0.95), rgba(129,140,248,0.95))',
         backdropFilter: 'blur(12px)',
         border: '1px solid rgba(255,255,255,0.2)',
+        animation: 'fadeInUp 0.3s ease',
       }}
     >
-      <span className="text-white text-sm font-semibold">✨ New version available</span>
+      <span className="text-white text-sm font-semibold">✨ Update available</span>
       <button
         onClick={handleUpdate}
         className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white/20 hover:bg-white/30 text-white transition-all"
       >
-        Update now
+        Tap to update
       </button>
     </div>
   );
