@@ -481,9 +481,15 @@ export default function PlayPage() {
                 {DAYS.map(day => {
                   const on = current.days.includes(day);
                   return (
-                    <button key={day} onClick={() => toggleDay(day)}
-                      className="flex-1 py-2 rounded-lg text-xs font-bold transition-all"
-                      style={{ background: on ? `${current.color}30` : 'rgba(30,41,59,0.8)', color: on ? current.color : '#475569', border: `1.5px solid ${on ? current.color : '#334155'}` }}>
+                    <button key={day}
+                      onPointerUp={(e) => { e.preventDefault(); e.stopPropagation(); toggleDay(day); }}
+                      className="flex-1 py-2.5 rounded-lg text-xs font-bold transition-colors select-none touch-manipulation"
+                      style={{
+                        background: on ? current.color : 'rgba(30,41,59,0.8)',
+                        color: on ? '#FFFFFF' : '#475569',
+                        border: `1.5px solid ${on ? current.color : '#334155'}`,
+                        boxShadow: on ? `0 0 12px ${current.color}50` : 'none',
+                      }}>
                       {day.charAt(0)}
                     </button>
                   );
