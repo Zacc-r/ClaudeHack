@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSchedule, addEvent, removeEvent, type ScheduleEvent } from '@/lib/redis';
+import { getRedis, getSchedule, addEvent, removeEvent, type ScheduleEvent } from '@/lib/redis';
 import { validateScheduleChange } from '@/lib/claude';
 import { v4 as uuid } from 'uuid';
 
@@ -72,10 +72,21 @@ export async function POST(req: NextRequest) {
   }
 
   const { functionName, args } = parsed;
-  const userId = req.cookies.get('drako_user_id')?.value || 'demo';
   const today = new Date().toISOString().split('T')[0];
 
-  console.log(`[Tavus Tool Call] Function: ${functionName}, User: ${userId}, Args:`, args);
+  // Tavus calls from their servers — no cookies. Use conversation→userId mapping from Redis.
+  const conversationId = body.conversation_id;
+  let userId = 'demo';
+  if (conversationId) {
+    const r = getRedis();
+    const mapped = await r.get(`conversation:${conversationId}:userId`);
+    if (mapped) userId = mapped;
+  }
+  // Fallback to cookie only for non-Tavus callers (manual testing)
+  if (userId === 'demo') {
+    userId = req.cookies.get('drako_user_id')?.value || 'demo';
+  }
+  console.log(`[Tavus Tools] conversation=${conversationId} → userId=${userId}, function=${functionName}`);
 
   try {
     switch (functionName) {

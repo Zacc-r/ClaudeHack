@@ -23,10 +23,20 @@ export async function POST(req: NextRequest) {
         conversationId,
         timestamp: new Date().toISOString(),
       }));
+      await r.publish(`schedule:updates:${userId}`, JSON.stringify({
+        type: 'speaker_change',
+        speaker: 'drako',
+        timestamp: new Date().toISOString(),
+      }));
       break;
 
     case 'conversation.ended':
       console.log(`[Webhook] Conversation ended for user ${userId}`);
+      await r.publish(`schedule:updates:${userId}`, JSON.stringify({
+        type: 'speaker_change',
+        speaker: 'idle',
+        timestamp: new Date().toISOString(),
+      }));
       await r.publish(`schedule:updates:${userId}`, JSON.stringify({
         type: 'conversation_ended',
         conversationId,
@@ -42,6 +52,72 @@ export async function POST(req: NextRequest) {
     case 'participant.left':
       console.log(`[Webhook] Participant left: ${body.participant_id || 'unknown'}`);
       break;
+
+    case 'replica.start_talking':
+    case 'replica.started_talking':
+    case 'agent.start_talking':
+    case 'agent.started_talking': {
+      console.log(`[Webhook] DRAKO started speaking for user ${userId}`);
+      await r.publish(`schedule:updates:${userId}`, JSON.stringify({
+        type: 'speaker_change',
+        speaker: 'drako',
+        timestamp: new Date().toISOString(),
+      }));
+      break;
+    }
+
+    case 'replica.stop_talking':
+    case 'replica.stopped_talking':
+    case 'agent.stop_talking':
+    case 'agent.stopped_talking': {
+      console.log(`[Webhook] DRAKO stopped speaking for user ${userId}`);
+      await r.publish(`schedule:updates:${userId}`, JSON.stringify({
+        type: 'speaker_change',
+        speaker: 'idle',
+        timestamp: new Date().toISOString(),
+      }));
+      break;
+    }
+
+    case 'user.start_talking':
+    case 'user.started_talking':
+    case 'participant.start_talking':
+    case 'participant.started_talking': {
+      console.log(`[Webhook] User started speaking for user ${userId}`);
+      await r.publish(`schedule:updates:${userId}`, JSON.stringify({
+        type: 'speaker_change',
+        speaker: 'user',
+        timestamp: new Date().toISOString(),
+      }));
+      break;
+    }
+
+    case 'user.stop_talking':
+    case 'user.stopped_talking':
+    case 'participant.stop_talking':
+    case 'participant.stopped_talking': {
+      console.log(`[Webhook] User stopped speaking for user ${userId}`);
+      await r.publish(`schedule:updates:${userId}`, JSON.stringify({
+        type: 'speaker_change',
+        speaker: 'idle',
+        timestamp: new Date().toISOString(),
+      }));
+      break;
+    }
+
+    case 'application.utterance':
+    case 'transcript.utterance': {
+      const role = body.properties?.role || body.role;
+      const speaker = role === 'replica' || role === 'agent' || role === 'assistant' ? 'drako' : 'user';
+      
+      console.log(`[Webhook] Utterance from ${speaker} for user ${userId}`);
+      await r.publish(`schedule:updates:${userId}`, JSON.stringify({
+        type: 'speaker_change',
+        speaker,
+        timestamp: new Date().toISOString(),
+      }));
+      break;
+    }
 
     case 'application.transcription_ready': {
       const transcript = body.properties?.transcript;

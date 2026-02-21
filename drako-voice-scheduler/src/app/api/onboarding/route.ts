@@ -100,6 +100,34 @@ function convertLegacySurvey(legacy: LegacySurvey): OnboardingSurvey {
   };
 }
 
+// Frontend → Backend value normalization
+const TYPE_NORMALIZE: Record<string, string> = {
+  builder: 'builder', operator: 'operator', learner: 'learner', hustler: 'hustler',
+  engineer: 'builder', designer: 'builder', student: 'learner',
+  pm: 'operator', founder: 'hustler', professional: 'operator',
+  creative: 'builder', athlete: 'hustler', other: 'builder',
+};
+
+const RHYTHM_NORMALIZE: Record<string, string> = {
+  early_bird: 'early_bird', morning: 'morning', mid_morning: 'mid_morning', late_starter: 'late_starter',
+  '5am': 'early_bird', '6am': 'early_bird',
+  '7am': 'morning', '7:00': 'morning',
+  '8am': 'morning', '8:00': 'morning',
+  '9am': 'mid_morning', '9:00': 'mid_morning',
+  '10am': 'late_starter', '10:00': 'late_starter',
+  '11am': 'late_starter', '11:00': 'late_starter',
+  'morning person': 'morning', 'night owl': 'late_starter', 'flexible': 'morning',
+};
+
+const NON_NEG_NORMALIZE: Record<string, string> = {
+  deep_focus: 'deep_focus', meetings: 'meetings', exercise: 'exercise',
+  meals: 'meals', learning: 'learning', breaks: 'breaks',
+  creative: 'creative', family: 'family',
+  'deep work': 'deep_focus', 'focus': 'deep_focus', deep_work: 'deep_focus',
+  'creative time': 'creative', 'social': 'family',
+  meditation: 'breaks', side_project: 'creative', entertainment: 'breaks',
+};
+
 export async function POST(req: NextRequest) {
   try {
     const rawSurvey = await req.json();
@@ -108,20 +136,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
-    const survey: OnboardingSurvey = rawSurvey.type 
-      ? rawSurvey as OnboardingSurvey
-      : convertLegacySurvey(rawSurvey as LegacySurvey);
+    // Normalize ALL values regardless of format
+    const normalizedType = TYPE_NORMALIZE[rawSurvey.type] || TYPE_NORMALIZE[rawSurvey.role] || 'builder';
+    const normalizedRhythm = RHYTHM_NORMALIZE[rawSurvey.rhythm] || RHYTHM_NORMALIZE[rawSurvey.wakeUpTime] || 'morning';
+    const rawNonNegs = rawSurvey.nonNegotiables || rawSurvey.priorities || ['deep_focus'];
+    const normalizedNonNegs = rawNonNegs.map((n: string) => NON_NEG_NORMALIZE[n] || n);
+    const normalizedStruggle = rawSurvey.struggle || 'no_focus_time';
 
     const r = getRedis();
     const id = `usr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
     
     const user: UserProfile = {
       id,
-      name: survey.name,
-      type: survey.type || 'builder',
-      rhythm: survey.rhythm || 'morning',
-      nonNegotiables: survey.nonNegotiables || ['deep_focus'],
-      struggle: survey.struggle || 'no_focus_time',
+      name: rawSurvey.name,
+      type: normalizedType,
+      rhythm: normalizedRhythm,
+      nonNegotiables: normalizedNonNegs,
+      struggle: normalizedStruggle,
       createdAt: new Date().toISOString(),
     };
 
@@ -131,9 +162,15 @@ export async function POST(req: NextRequest) {
     const today = new Date().toISOString().split('T')[0];
     const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
-    const nonNegotiableText = (survey.nonNegotiables || ['deep_focus'])
-      .map(n => NON_NEGOTIABLE_LABELS[n] || n)
+    const nonNegotiableText = normalizedNonNegs
+      .map((n: string) => NON_NEGOTIABLE_LABELS[n] || n)
       .join(', ');
+
+    const typeDesc = TYPE_DESCRIPTIONS[normalizedType] || 'a professional';
+    const rhythmDesc = RHYTHM_TIMES[normalizedRhythm] || '7-9 AM';
+    const struggleDesc = STRUGGLE_LABELS[normalizedStruggle] || 'general time management';
+
+    console.log(`[Onboarding] Normalized: type=${normalizedType}, rhythm=${normalizedRhythm}, struggle=${normalizedStruggle}`);
 
     const claude = getClaude();
     const response = await claude.messages.create({
@@ -143,11 +180,11 @@ export async function POST(req: NextRequest) {
         role: 'user',
         content: `Generate a realistic daily schedule for today (${today}, ${dayOfWeek}) for this person:
 
-Name: ${survey.name}
-Type: ${survey.type} (${TYPE_DESCRIPTIONS[survey.type]})
-Brain turns on: ${survey.rhythm} (${RHYTHM_TIMES[survey.rhythm]})
+Name: ${rawSurvey.name}
+Type: ${normalizedType} (${typeDesc})
+Brain turns on: ${normalizedRhythm} (${rhythmDesc})
 Non-negotiables: ${nonNegotiableText}
-Biggest struggle: ${STRUGGLE_LABELS[survey.struggle]}
+Biggest struggle: ${struggleDesc}
 
 Rules:
 - Schedule should run from their wake time through evening
@@ -182,7 +219,7 @@ Respond ONLY with a JSON array, no markdown, no explanation:
       }));
     } catch (parseError) {
       console.error('[Onboarding] Failed to parse Claude response, using fallback:', parseError);
-      events = generateFallbackSchedule(survey, today);
+      events = generateFallbackSchedule({ rhythm: normalizedRhythm, nonNegotiables: normalizedNonNegs }, today);
     }
 
     for (const event of events) {
@@ -213,7 +250,7 @@ Respond ONLY with a JSON array, no markdown, no explanation:
   }
 }
 
-function generateFallbackSchedule(survey: OnboardingSurvey, today: string): ScheduleEvent[] {
+function generateFallbackSchedule(survey: { rhythm: string; nonNegotiables: string[] }, today: string): ScheduleEvent[] {
   const events: ScheduleEvent[] = [];
   
   const startHours: Record<string, number> = {
