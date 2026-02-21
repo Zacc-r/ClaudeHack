@@ -10,6 +10,10 @@
 - [x] Created ceo-files/ with Phase Library v2
 - [x] Created ai-agents/ hub for agent coordination
 - [x] Initialized GitHub repo (ClaudeHack)
+- [x] OpenClaw agent framework files integrated (AGENTS, SOUL, IDENTITY, USER, TOOLS)
+- [x] iPhone 16e identified — UDID: 00008140-000871E43A9B801C, WiFi: 10.4.33.117
+- [x] Device info logged to shared-context/device-info.md
+- [x] Dev server URL: http://10.4.33.167:3000 (accessible from iPhone over WiFi)
 
 ### In Progress
 - [ ] API keys setup (Tavus, Claude)
