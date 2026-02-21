@@ -25,6 +25,14 @@ export const metadata: Metadata = {
   description: 'Voice-powered AI schedule builder',
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#0A0A0F',
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

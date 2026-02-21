@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { createSubscriber } from '@/lib/redis';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300; // 5 min max for SSE on Vercel Pro; hobby = 10s fallback
 
 export async function GET(req: NextRequest) {
   const userId = req.cookies.get('drako_user_id')?.value || 'demo';
