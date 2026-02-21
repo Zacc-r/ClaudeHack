@@ -22,7 +22,22 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'DRAKO - Voice Schedule Builder',
-  description: 'Voice-powered AI schedule builder',
+  description: 'AI-powered voice scheduling companion. Build your perfect day with DRAKO.',
+  manifest: '/manifest.json',
+  icons: {
+    apple: '/apple-touch-icon.png',
+    icon: '/icon-192.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'DRAKO',
+  },
+  openGraph: {
+    title: 'DRAKO - Voice Schedule Builder',
+    description: 'Build your perfect day with AI voice scheduling',
+    type: 'website',
+  },
 };
 
 export const viewport = {
