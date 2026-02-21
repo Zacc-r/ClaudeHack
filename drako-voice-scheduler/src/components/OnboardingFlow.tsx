@@ -33,7 +33,9 @@ interface OnboardingState {
   name: string;
   type: OnboardingSurvey['type'] | '';
   rhythm: OnboardingSurvey['rhythm'] | '';
-  nonNegotiables: string[];
+  selectedActivities: string[];
+  swipeIndex: number;
+  timeAllocations: Record<string, number>;
   struggle: OnboardingSurvey['struggle'] | '';
   isSubmitting: boolean;
   error: string | null;
@@ -51,13 +53,24 @@ const ROLES = [
 
 const WAKE_TIMES = ['6am', '7am', '8am', '9am', '10am'] as const;
 
-const SWIPE_CATEGORIES = [
-  { id: 'exercise', name: 'Exercise', emoji: '🏋️', color: '#EF4444' },
-  { id: 'deep_work', name: 'Deep Work', emoji: '🧠', color: '#14B8A6' },
-  { id: 'learning', name: 'Learning', emoji: '📚', color: '#F59E0B' },
-  { id: 'creative', name: 'Creative Time', emoji: '🎨', color: '#EC4899' },
-  { id: 'social', name: 'Social', emoji: '👥', color: '#8B5CF6' },
-  { id: 'meditation', name: 'Meditation', emoji: '🧘', color: '#6366F1' },
+const ACTIVITY_OPTIONS = [
+  { id: 'work',         emoji: '💼', label: 'Work',           color: '#3B82F6',  group: 'Core' },
+  { id: 'school',       emoji: '🎓', label: 'School/Classes', color: '#6366F1',  group: 'Core' },
+  { id: 'commute',      emoji: '🚌', label: 'Commute',        color: '#64748B',  group: 'Core' },
+  { id: 'gym',          emoji: '🏋️', label: 'Gym',            color: '#EF4444',  group: 'Health' },
+  { id: 'running',      emoji: '🏃', label: 'Running/Walk',   color: '#F97316',  group: 'Health' },
+  { id: 'meditation',   emoji: '🧘', label: 'Meditation',     color: '#6366F1',  group: 'Health' },
+  { id: 'cooking',      emoji: '🍳', label: 'Cooking',        color: '#F59E0B',  group: 'Life' },
+  { id: 'errands',      emoji: '🛒', label: 'Errands',        color: '#94A3B8',  group: 'Life' },
+  { id: 'deep_work',    emoji: '🧠', label: 'Deep Focus',     color: '#14B8A6',  group: 'Focus' },
+  { id: 'learning',     emoji: '📖', label: 'Learning',       color: '#10B981',  group: 'Focus' },
+  { id: 'creative',     emoji: '🎨', label: 'Creative',       color: '#EC4899',  group: 'Focus' },
+  { id: 'side_project', emoji: '🚀', label: 'Side Project',   color: '#8B5CF6',  group: 'Focus' },
+  { id: 'reading',      emoji: '📚', label: 'Reading',        color: '#22D3EE',  group: 'Focus' },
+  { id: 'social',       emoji: '👥', label: 'Friends/Social', color: '#A855F7',  group: 'Social' },
+  { id: 'family',       emoji: '🏠', label: 'Family Time',    color: '#84CC16',  group: 'Social' },
+  { id: 'gaming',       emoji: '🎮', label: 'Gaming/Fun',     color: '#F97316',  group: 'Leisure' },
+  { id: 'shows',        emoji: '📺', label: 'Shows/Movies',   color: '#38BDF8',  group: 'Leisure' },
 ];
 
 const STRUGGLES = [
@@ -76,183 +89,32 @@ const BUILDING_STEPS = [
 function ProgressDots({ current, total }: { current: number; total: number }) {
   if (current >= total) return null;
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-50 pb-safe">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-50">
       {Array.from({ length: total }).map((_, i) => (
         <div key={i} className="transition-all duration-500" style={{
           width: i === current ? 24 : 8, height: 8, borderRadius: 4,
           backgroundColor: i <= current ? '#38BDF8' : 'rgba(255,255,255,0.2)',
-          boxShadow: i === current ? '0 0 12px rgba(56, 189, 248, 0.6)' : 'none',
+          boxShadow: i === current ? '0 0 12px rgba(56,189,248,0.6)' : 'none',
         }} />
       ))}
     </div>
   );
 }
 
-/* ─── Swipe Card ─── */
-
-interface SwipeCardProps {
-  category: typeof SWIPE_CATEGORIES[number];
-  minutes: number;
-  onTimeChange: (delta: number) => void;
-  onLockIn: () => void;
-}
-
-function SwipeCard({ category, minutes, onTimeChange, onLockIn }: SwipeCardProps) {
-  const startRef = useRef<{ x: number; y: number } | null>(null);
-  const [delta, setDelta] = useState({ x: 0, y: 0 });
-  const [flyOut, setFlyOut] = useState(false);
-  const [settling, setSettling] = useState(false);
-
-  const handleStart = useCallback((clientX: number, clientY: number) => {
-    startRef.current = { x: clientX, y: clientY };
-    setDelta({ x: 0, y: 0 });
-  }, []);
-
-  const handleMove = useCallback((clientX: number, clientY: number) => {
-    if (!startRef.current) return;
-    setDelta({ x: clientX - startRef.current.x, y: clientY - startRef.current.y });
-  }, []);
-
-  const handleEnd = useCallback(() => {
-    if (!startRef.current) return;
-    const dx = delta.x;
-    const dy = delta.y;
-    startRef.current = null;
-
-    if (dy < -80) {
-      setFlyOut(true);
-      setTimeout(() => {
-        onLockIn();
-        setFlyOut(false);
-        setDelta({ x: 0, y: 0 });
-      }, 300);
-      return;
-    }
-
-    if (Math.abs(dx) > 100) {
-      onTimeChange(dx > 0 ? 30 : -30);
-      setSettling(true);
-      setDelta({ x: 0, y: 0 });
-      setTimeout(() => setSettling(false), 400);
-      return;
-    }
-
-    setDelta({ x: 0, y: 0 });
-  }, [delta, onTimeChange, onLockIn]);
-
-  const isDragging = startRef.current !== null && !flyOut;
-  const showRight = isDragging && delta.x > 50;
-  const showLeft = isDragging && delta.x < -50;
-  const showUp = isDragging && delta.y < -40;
-
-  return (
-    <div
-      className="relative w-full max-w-sm mx-auto select-none touch-none cursor-grab active:cursor-grabbing"
-      style={{
-        transform: flyOut
-          ? 'translateY(-100vh) scale(0.8)'
-          : `translateX(${delta.x}px) rotate(${delta.x * 0.1}deg)`,
-        opacity: flyOut ? 0 : 1,
-        transition: (isDragging && !flyOut)
-          ? 'none'
-          : settling
-            ? 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
-            : 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s',
-      }}
-      onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
-      onTouchMove={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY)}
-      onTouchEnd={handleEnd}
-      onMouseDown={(e) => { e.preventDefault(); handleStart(e.clientX, e.clientY); }}
-      onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
-      onMouseUp={handleEnd}
-      onMouseLeave={() => { if (startRef.current) handleEnd(); }}
-    >
-      {/* Green tint overlay */}
-      {showRight && (
-        <div className="absolute inset-0 rounded-3xl z-10 pointer-events-none"
-          style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)' }} />
-      )}
-      {/* Red tint overlay */}
-      {showLeft && (
-        <div className="absolute inset-0 rounded-3xl z-10 pointer-events-none"
-          style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }} />
-      )}
-
-      {/* Swipe hints */}
-      {showRight && (
-        <div className="absolute top-6 right-6 z-20 text-[#10B981] font-bold text-xl animate-pulse">
-          +30 min
-        </div>
-      )}
-      {showLeft && (
-        <div className="absolute top-6 left-6 z-20 text-[#EF4444] font-bold text-xl animate-pulse">
-          {minutes > 0 ? '-30 min' : 'Skip'}
-        </div>
-      )}
-      {showUp && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 text-[#38BDF8] font-bold text-sm animate-pulse">
-          ↑ Lock in!
-        </div>
-      )}
-
-      <div
-        className="rounded-3xl p-10 flex flex-col items-center"
-        style={{
-          backgroundColor: 'rgba(30, 41, 59, 0.8)',
-          border: `2px solid ${minutes > 0 ? category.color : '#334155'}`,
-          boxShadow: minutes > 0
-            ? `0 0 30px ${category.color}30, inset 0 0 20px ${category.color}10`
-            : '0 4px 24px rgba(0,0,0,0.3)',
-        }}
-      >
-        <span className="text-6xl mb-4" style={{ filter: `drop-shadow(0 0 12px ${category.color}40)` }}>
-          {category.emoji}
-        </span>
-        <h3 className="text-2xl font-bold text-white mb-4">{category.name}</h3>
-        <div
-          className="text-3xl font-bold transition-all duration-300"
-          style={{ color: minutes > 0 ? category.color : '#475569' }}
-        >
-          {minutes > 0 ? `${minutes} min` : 'Skip'}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Main Flow ─── */
-
 export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [state, setState] = useState<OnboardingState>({
-    step: 0,
-    name: '',
-    type: '',
-    rhythm: '',
-    nonNegotiables: [],
-    struggle: '',
-    isSubmitting: false,
-    error: null,
-    buildingStep: 0,
-    robotState: 'greeting',
+    step: 0, name: '', type: '', rhythm: '', selectedActivities: [],
+    struggle: '', isSubmitting: false, error: null, buildingStep: 0, robotState: 'greeting',
   });
 
   const [savedData, setSavedData] = useState<{
-    user: UserProfile;
-    events: ScheduleEvent[];
+    user: UserProfile; events: ScheduleEvent[];
     persona?: { archetype?: string; archetypeEmoji?: string; drakoGreeting?: string; tagline?: string };
   } | null>(null);
 
-  // Swipe card state
-  const [swipeIndex, setSwipeIndex] = useState(0);
-  const [timeAllocations, setTimeAllocations] = useState<Record<string, number>>(() => {
-    const init: Record<string, number> = {};
-    SWIPE_CATEGORIES.forEach(c => { init[c.id] = 0; });
-    return init;
-  });
-
   useEffect(() => {
-    const timeout = setTimeout(() => setState(prev => ({ ...prev, robotState: 'idle' })), 1000);
-    return () => clearTimeout(timeout);
+    const t = setTimeout(() => setState(prev => ({ ...prev, robotState: 'idle' })), 1000);
+    return () => clearTimeout(t);
   }, []);
 
   const nextStep = useCallback(() => {
@@ -270,47 +132,33 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     setTimeout(() => nextStep(), 300);
   }, [nextStep]);
 
-  const handleSwipeTimeChange = useCallback((categoryId: string, delta: number) => {
-    setTimeAllocations(prev => ({
+  const toggleActivity = useCallback((id: string) => {
+    setState(prev => ({
       ...prev,
-      [categoryId]: Math.max(0, Math.min(240, (prev[categoryId] || 0) + delta)),
+      selectedActivities: prev.selectedActivities.includes(id)
+        ? prev.selectedActivities.filter(a => a !== id)
+        : [...prev.selectedActivities, id],
     }));
   }, []);
 
-  const handleSwipeLockIn = useCallback(() => {
-    setSwipeIndex(prev => prev + 1);
-  }, []);
-
-  const handleSwipeDone = useCallback(() => {
-    const active = Object.entries(timeAllocations)
-      .filter(([, mins]) => mins > 0)
-      .map(([id]) => id);
-    setState(prev => ({ ...prev, nonNegotiables: active.length > 0 ? active : ['deep_work'] }));
+  const handleActivitiesDone = useCallback(() => {
+    if (state.selectedActivities.length === 0) return;
     nextStep();
-  }, [timeAllocations, nextStep]);
+  }, [state.selectedActivities, nextStep]);
 
   const submitOnboarding = useCallback(async () => {
     setState(prev => ({ ...prev, isSubmitting: true, error: null, robotState: 'thinking' }));
     try {
-      const active = Object.entries(timeAllocations)
-        .filter(([, mins]) => mins > 0)
-        .map(([id]) => id);
       const survey = {
-        name: state.name,
-        type: state.type,
-        rhythm: state.rhythm,
-        nonNegotiables: active.length > 0 ? active : ['deep_work'],
-        selectedActivities: active,
+        name: state.name, type: state.type, rhythm: state.rhythm,
+        nonNegotiables: state.selectedActivities.length > 0 ? state.selectedActivities : ['deep_work'],
+        selectedActivities: state.selectedActivities,
         struggle: state.struggle || 'no_focus_time',
-        timeAllocations,
       };
-
       const res = await fetch('/api/onboarding', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(survey),
       });
-
       const data = await res.json();
       if (data.success) {
         setSavedData({ user: data.user, events: data.events || [], persona: data.persona || undefined });
@@ -319,13 +167,11 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       throw new Error(data.error || 'Failed to create schedule');
     } catch (err) {
       setState(prev => ({
-        ...prev,
-        isSubmitting: false,
-        robotState: 'idle',
-        error: err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+        ...prev, isSubmitting: false, robotState: 'idle',
+        error: err instanceof Error ? err.message : 'Something went wrong.',
       }));
     }
-  }, [state, timeAllocations]);
+  }, [state]);
 
   const handleNameSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -344,12 +190,8 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   useEffect(() => {
     if (state.step === 5 && !savedData && !state.error) {
       const interval = setInterval(() => {
-        setState(prev => {
-          if (prev.buildingStep < BUILDING_STEPS.length - 1) {
-            return { ...prev, buildingStep: prev.buildingStep + 1 };
-          }
-          return prev;
-        });
+        setState(prev => prev.buildingStep < BUILDING_STEPS.length - 1
+          ? { ...prev, buildingStep: prev.buildingStep + 1 } : prev);
       }, 800);
       return () => clearInterval(interval);
     }
@@ -357,269 +199,189 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
   const renderStep = () => {
     switch (state.step) {
-      // ─── Step 0: Name ───────────────────────────────────────────────
+      /* ── Step 0: Name ─────────────────────────────────── */
       case 0:
         return (
-          <div key="step-0" className="animate-fadeInUp flex flex-col items-center text-center px-6">
+          <div key="s0" className="animate-fadeInUp flex flex-col items-center text-center px-6">
             <DrakoRobot size="md" state={state.robotState} className="mb-4" />
             <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-[#38BDF8] to-[#818CF8] bg-clip-text text-transparent">
               Hey! I&apos;m DRAKO 🤖
             </h1>
             <p className="text-base text-[#94A3B8] mb-6 max-w-md">
-              Your AI scheduling companion. Let&apos;s build your perfect day together.
+              Your AI scheduling companion. Let&apos;s build your perfect day.
             </p>
             <form onSubmit={handleNameSubmit} className="w-full max-w-sm">
-              <input
-                type="text"
-                value={state.name}
-                onChange={(e) => setState(prev => ({ ...prev, name: e.target.value }))}
+              <input type="text" value={state.name} autoFocus
+                onChange={e => setState(prev => ({ ...prev, name: e.target.value }))}
                 placeholder="What's your name?"
-                autoFocus
-                className="w-full px-5 py-4 rounded-xl text-lg outline-none transition-all bg-[#1E293B]/50 text-white placeholder:text-[#475569] border-2 border-[#334155] focus:border-[#38BDF8] focus:shadow-[0_0_30px_rgba(56,189,248,0.2)]"
-              />
-              <button
-                type="submit"
-                disabled={!state.name.trim()}
-                className="w-full mt-4 px-6 py-4 rounded-xl font-bold text-base transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
-                style={{
-                  background: state.name.trim() ? 'linear-gradient(135deg, #38BDF8, #818CF8)' : '#1E293B',
-                  color: 'white',
-                  boxShadow: state.name.trim() ? '0 0 40px rgba(56, 189, 248, 0.3)' : 'none',
-                }}>
+                className="w-full px-5 py-4 rounded-xl text-lg outline-none transition-all bg-[#1E293B]/50 text-white placeholder:text-[#475569] border-2 border-[#334155] focus:border-[#38BDF8]" />
+              <button type="submit" disabled={!state.name.trim()}
+                className="w-full mt-4 px-6 py-4 rounded-xl font-bold text-base transition-all disabled:opacity-30 hover:scale-[1.02]"
+                style={{ background: state.name.trim() ? 'linear-gradient(135deg,#38BDF8,#818CF8)' : '#1E293B', color: 'white' }}>
                 Let&apos;s go →
               </button>
             </form>
           </div>
         );
 
-      // ─── Step 1: Role ────────────────────────────────────────────────
+      /* ── Step 1: Role ─────────────────────────────────── */
       case 1:
         return (
-          <div key="step-1" className="animate-fadeInUp flex flex-col items-center text-center px-6">
+          <div key="s1" className="animate-fadeInUp flex flex-col items-center text-center px-6">
             <DrakoRobot size="md" state={state.robotState} className="mb-4" />
             <h2 className="text-2xl font-bold mb-2 text-white">Nice to meet you, {state.name}!</h2>
             <p className="text-[#94A3B8] mb-8">What best describes you?</p>
             <div className="flex flex-wrap justify-center gap-3 max-w-md">
-              {ROLES.map(({ id, label, icon }) => {
-                const isSelected = state.type === id;
-                return (
-                  <button key={id} onClick={() => selectRole(id as OnboardingSurvey['type'])}
-                    className="px-6 py-3 rounded-full font-medium transition-all hover:scale-105 active:scale-95"
-                    style={{
-                      background: isSelected ? 'linear-gradient(135deg, #38BDF8, #818CF8)' : 'rgba(30, 41, 59, 0.8)',
-                      color: 'white',
-                      border: `2px solid ${isSelected ? '#38BDF8' : '#334155'}`,
-                      boxShadow: isSelected ? '0 0 20px rgba(56, 189, 248, 0.4)' : 'none',
-                    }}>
-                    {icon} {label}
-                  </button>
-                );
-              })}
+              {ROLES.map(({ id, label, icon }) => (
+                <button key={id} onClick={() => selectRole(id as OnboardingSurvey['type'])}
+                  className="px-6 py-3 rounded-full font-medium transition-all hover:scale-105"
+                  style={{
+                    background: state.type === id ? 'linear-gradient(135deg,#38BDF8,#818CF8)' : 'rgba(30,41,59,0.8)',
+                    color: 'white', border: `2px solid ${state.type === id ? '#38BDF8' : '#334155'}`,
+                  }}>
+                  {icon} {label}
+                </button>
+              ))}
             </div>
           </div>
         );
 
-      // ─── Step 2: Wake time ───────────────────────────────────────────
+      /* ── Step 2: Wake time ────────────────────────────── */
       case 2:
         return (
-          <div key="step-2" className="animate-fadeInUp flex flex-col items-center text-center px-6">
+          <div key="s2" className="animate-fadeInUp flex flex-col items-center text-center px-6">
             <DrakoRobot size="md" state={state.robotState} className="mb-4" />
             <h2 className="text-2xl font-bold mb-2 text-white">When do you wake up?</h2>
             <p className="text-[#94A3B8] mb-8">I&apos;ll build your day around this</p>
             <div className="flex flex-wrap justify-center gap-3 max-w-lg">
-              {WAKE_TIMES.map((time) => {
-                const isSelected = state.rhythm === time;
-                return (
-                  <button key={time} onClick={() => selectWakeTime(time)}
-                    className="w-16 h-16 rounded-xl font-bold text-base transition-all hover:scale-105 active:scale-95 flex flex-col items-center justify-center"
-                    style={{
-                      background: isSelected ? 'linear-gradient(135deg, #38BDF8, #818CF8)' : 'rgba(30, 41, 59, 0.8)',
-                      color: 'white',
-                      border: `2px solid ${isSelected ? '#38BDF8' : '#334155'}`,
-                      boxShadow: isSelected ? '0 0 20px rgba(56, 189, 248, 0.4)' : 'none',
-                    }}>
-                    <span className="text-xl mb-0.5">
-                      {parseInt(time) <= 6 ? '🌙' : parseInt(time) <= 8 ? '🌅' : '☀️'}
-                    </span>
-                    <span className="text-xs uppercase">{time}</span>
-                  </button>
-                );
-              })}
+              {WAKE_TIMES.map(time => (
+                <button key={time} onClick={() => selectWakeTime(time)}
+                  className="w-16 h-16 rounded-xl font-bold text-base transition-all hover:scale-105 flex flex-col items-center justify-center"
+                  style={{
+                    background: state.rhythm === time ? 'linear-gradient(135deg,#38BDF8,#818CF8)' : 'rgba(30,41,59,0.8)',
+                    color: 'white', border: `2px solid ${state.rhythm === time ? '#38BDF8' : '#334155'}`,
+                  }}>
+                  <span className="text-xl mb-0.5">{parseInt(time) <= 6 ? '🌙' : parseInt(time) <= 8 ? '🌅' : '☀️'}</span>
+                  <span className="text-xs uppercase">{time}</span>
+                </button>
+              ))}
             </div>
           </div>
         );
 
-      // ─── Step 3: Swipe Cards ──────────────────────────────────────────
+      /* ── Step 3: Activity multi-select ───────────────── */
       case 3: {
-        const swipeDone = swipeIndex >= SWIPE_CATEGORIES.length;
-
-        if (swipeDone) {
-          const totalMins = Object.values(timeAllocations).reduce((a, b) => a + b, 0);
-          const activeCount = Object.values(timeAllocations).filter(m => m > 0).length;
-          const hours = Math.floor(totalMins / 60);
-          const mins = totalMins % 60;
-          const timeStr = hours > 0
-            ? `${hours}h${mins > 0 ? ` ${mins}m` : ''}`
-            : totalMins > 0 ? `${mins}m` : '0m';
-
-          return (
-            <div key="step-3-summary" className="animate-fadeInUp flex flex-col items-center text-center px-6">
-              <span className="text-5xl mb-4">✨</span>
-              <h2 className="text-2xl font-bold mb-3 text-white">
-                {activeCount > 0
-                  ? `Nice! You allocated ${timeStr} across ${activeCount} ${activeCount === 1 ? 'activity' : 'activities'}`
-                  : 'No time allocated — DRAKO will suggest defaults'}
-              </h2>
-
-              {activeCount > 0 && (
-                <div className="flex flex-wrap justify-center gap-2 mb-6">
-                  {SWIPE_CATEGORIES.filter(c => timeAllocations[c.id] > 0).map(c => (
-                    <span
-                      key={c.id}
-                      className="px-3 py-1.5 rounded-full text-sm font-medium"
-                      style={{
-                        backgroundColor: `${c.color}20`,
-                        color: c.color,
-                        border: `1px solid ${c.color}40`,
-                      }}
-                    >
-                      {c.emoji} {timeAllocations[c.id]}m
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <button
-                onClick={handleSwipeDone}
-                className="w-full max-w-sm px-8 py-5 rounded-2xl font-bold text-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
-                style={{
-                  background: 'linear-gradient(135deg, #38BDF8, #818CF8)',
-                  color: 'white',
-                  boxShadow: '0 0 40px rgba(56, 189, 248, 0.3)',
-                }}>
-                Continue →
-              </button>
-            </div>
-          );
-        }
-
-        const cat = SWIPE_CATEGORIES[swipeIndex];
-
+        const sel = state.selectedActivities;
+        const groups = ['Core', 'Health', 'Life', 'Focus', 'Social', 'Leisure'];
         return (
-          <div key={`step-3-${cat.id}`} className="animate-fadeInUp flex flex-col items-center text-center px-4">
-            {/* Counter */}
-            <div className="mb-6">
-              <span
-                className="text-sm font-bold px-3 py-1 rounded-full"
-                style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38BDF8' }}
-              >
-                {swipeIndex + 1} / {SWIPE_CATEGORIES.length}
-              </span>
+          <div key="s3" className="animate-fadeInUp flex flex-col items-center px-4 w-full max-w-lg">
+            <div className="text-center mb-5">
+              <h2 className="text-2xl font-bold text-white mb-1">What&apos;s in your day?</h2>
+              <p className="text-[#94A3B8] text-sm">
+                Pick everything that&apos;s part of your life
+                {sel.length > 0 && <span className="ml-2 text-[#38BDF8] font-medium">· {sel.length} picked</span>}
+              </p>
             </div>
-
-            {/* Swipe card */}
-            <SwipeCard
-              key={cat.id}
-              category={cat}
-              minutes={timeAllocations[cat.id]}
-              onTimeChange={(d) => handleSwipeTimeChange(cat.id, d)}
-              onLockIn={handleSwipeLockIn}
-            />
-
-            {/* Hint */}
-            <p className="mt-8 text-sm text-[#64748B]">
-              ← less time &nbsp;|&nbsp; swipe up to lock &nbsp;|&nbsp; more time →
-            </p>
+            <div className="w-full space-y-4 mb-6">
+              {groups.map(g => {
+                const items = ACTIVITY_OPTIONS.filter(a => a.group === g);
+                return (
+                  <div key={g}>
+                    <p className="text-xs text-[#475569] uppercase tracking-wider font-semibold mb-2 px-1">{g}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {items.map(a => {
+                        const on = sel.includes(a.id);
+                        return (
+                          <button key={a.id} onClick={() => toggleActivity(a.id)}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium transition-all hover:scale-105"
+                            style={{
+                              background: on ? `${a.color}22` : 'rgba(30,41,59,0.7)',
+                              color: on ? a.color : '#94A3B8',
+                              border: `1.5px solid ${on ? a.color : '#334155'}`,
+                              boxShadow: on ? `0 0 10px ${a.color}30` : 'none',
+                            }}>
+                            <span>{a.emoji}</span>
+                            <span>{a.label}</span>
+                            {on && <span className="text-xs opacity-60">✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={handleActivitiesDone} disabled={sel.length === 0}
+              className="w-full py-4 rounded-2xl font-bold text-lg transition-all hover:scale-[1.02] disabled:opacity-30 disabled:cursor-not-allowed sticky bottom-20"
+              style={{
+                background: sel.length > 0 ? 'linear-gradient(135deg,#38BDF8,#818CF8)' : '#1E293B',
+                color: 'white', boxShadow: sel.length > 0 ? '0 0 40px rgba(56,189,248,0.3)' : 'none',
+              }}>
+              {sel.length > 0 ? `Continue with ${sel.length} activit${sel.length === 1 ? 'y' : 'ies'} →` : 'Pick at least 1'}
+            </button>
           </div>
         );
       }
 
-      // ─── Step 4: Struggle ────────────────────────────────────────────
+      /* ── Step 4: Struggle ────────────────────────────── */
       case 4:
         return (
-          <div key="step-4" className="animate-fadeInUp flex flex-col items-center text-center px-6">
+          <div key="s4" className="animate-fadeInUp flex flex-col items-center text-center px-6">
             <DrakoRobot size="md" state={state.robotState} className="mb-4" />
             <h2 className="text-2xl font-bold mb-2 text-white">What&apos;s your biggest struggle?</h2>
             <p className="text-[#94A3B8] mb-8">I&apos;ll help you tackle it</p>
             <div className="grid grid-cols-2 gap-4 w-full max-w-md">
-              {STRUGGLES.map(({ id, emoji, label }) => {
-                const isSelected = state.struggle === id;
-                return (
-                  <button key={id} onClick={() => selectStruggle(id as OnboardingSurvey['struggle'])}
-                    className="p-5 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] text-center"
-                    style={{
-                      background: isSelected ? 'linear-gradient(135deg, #38BDF8, #818CF8)' : 'rgba(30, 41, 59, 0.8)',
-                      color: 'white',
-                      border: `2px solid ${isSelected ? '#38BDF8' : '#334155'}`,
-                      boxShadow: isSelected ? '0 0 20px rgba(56, 189, 248, 0.4)' : 'none',
-                    }}>
-                    <span className="text-3xl block mb-2">{emoji}</span>
-                    <span className="font-medium text-sm">{label}</span>
-                  </button>
-                );
-              })}
+              {STRUGGLES.map(({ id, emoji, label }) => (
+                <button key={id} onClick={() => selectStruggle(id as OnboardingSurvey['struggle'])}
+                  className="p-5 rounded-2xl transition-all hover:scale-[1.02] text-center"
+                  style={{
+                    background: state.struggle === id ? 'linear-gradient(135deg,#38BDF8,#818CF8)' : 'rgba(30,41,59,0.8)',
+                    color: 'white', border: `2px solid ${state.struggle === id ? '#38BDF8' : '#334155'}`,
+                  }}>
+                  <span className="text-3xl block mb-2">{emoji}</span>
+                  <span className="font-medium text-sm">{label}</span>
+                </button>
+              ))}
             </div>
           </div>
         );
 
-      // ─── Step 5: Building / Done ─────────────────────────────────────
+      /* ── Step 5: Building / Done ─────────────────────── */
       case 5:
-        if (state.error) {
-          return (
-            <div key="step-error" className="animate-fadeInUp flex flex-col items-center text-center px-6">
-              <DrakoRobot size="lg" state="idle" className="mb-6 opacity-60" />
-              <h2 className="text-2xl font-bold mb-3 text-white">Hmm, something went wrong</h2>
-              <p className="text-[#94A3B8] mb-8 max-w-md">{state.error}</p>
-              <button onClick={handleRetry}
-                className="px-8 py-4 rounded-2xl font-bold text-lg transition-all hover:scale-105"
-                style={{ background: 'linear-gradient(135deg, #38BDF8, #818CF8)', color: 'white' }}>
-                Try Again →
-              </button>
-            </div>
-          );
-        }
+        if (state.error) return (
+          <div key="s-err" className="animate-fadeInUp flex flex-col items-center text-center px-6">
+            <DrakoRobot size="lg" state="idle" className="mb-6 opacity-60" />
+            <h2 className="text-2xl font-bold mb-3 text-white">Something went wrong</h2>
+            <p className="text-[#94A3B8] mb-8 max-w-md">{state.error}</p>
+            <button onClick={handleRetry} className="px-8 py-4 rounded-2xl font-bold text-lg"
+              style={{ background: 'linear-gradient(135deg,#38BDF8,#818CF8)', color: 'white' }}>
+              Try Again →
+            </button>
+          </div>
+        );
 
         if (savedData) {
-          const persona = savedData.persona;
+          const p = savedData.persona;
           return (
-            <div key="step-done" className="animate-fadeInUp flex flex-col items-center text-center px-6">
-              {persona?.archetypeEmoji ? (
-                <div className="relative mb-4 animate-celebrateBounceIn">
-                  <div className="absolute inset-0 -m-8 rounded-full animate-pulse"
-                    style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.3) 0%, rgba(129,140,248,0.15) 40%, transparent 70%)' }} />
-                  <span className="relative text-7xl block" style={{ filter: 'drop-shadow(0 0 24px rgba(56, 189, 248, 0.5))' }}>
-                    {persona.archetypeEmoji}
-                  </span>
-                </div>
-              ) : (
-                <DrakoRobot size="xl" state="greeting" className="mb-6 animate-celebrateBounceIn" />
-              )}
-
+            <div key="s-done" className="animate-fadeInUp flex flex-col items-center text-center px-6">
+              {p?.archetypeEmoji
+                ? <span className="text-7xl mb-4 block">{p.archetypeEmoji}</span>
+                : <DrakoRobot size="xl" state="greeting" className="mb-6" />}
               <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-[#38BDF8] to-[#818CF8] bg-clip-text text-transparent">
-                {persona?.archetype || `Your day is ready, ${state.name}!`}
+                {p?.archetype || `Your day is ready, ${state.name}!`}
               </h2>
-
-              {persona?.drakoGreeting ? (
-                <div className="relative mt-4 mb-6 max-w-sm">
-                  <div className="rounded-2xl px-6 py-4"
-                    style={{ backgroundColor: 'rgba(30, 41, 59, 0.9)', border: '1px solid #334155' }}>
-                    <p className="text-[#E2E8F0] text-lg italic">&ldquo;{persona.drakoGreeting}&rdquo;</p>
-                  </div>
+              {p?.drakoGreeting && (
+                <div className="mt-4 mb-6 max-w-sm rounded-2xl px-6 py-4"
+                  style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid #334155' }}>
+                  <p className="text-[#E2E8F0] text-lg italic">&ldquo;{p.drakoGreeting}&rdquo;</p>
                 </div>
-              ) : (
-                <p className="text-[#94A3B8] mb-8 max-w-md">
-                  I&apos;ve built a personalized schedule based on your life.
-                </p>
               )}
-
               <p className="text-sm text-[#94A3B8] mb-6">
-                {savedData.events.length} events · now let&apos;s place your blocks
+                {savedData.events.length} events · now let&apos;s place your blocks in time
               </p>
-
-              <button
-                onClick={() => onComplete(savedData.user, savedData.events)}
-                className="px-10 py-5 rounded-2xl font-bold text-xl transition-all hover:scale-105 active:scale-95"
-                style={{ background: 'linear-gradient(135deg, #38BDF8, #818CF8)', color: 'white', boxShadow: '0 0 40px rgba(56,189,248,0.4)' }}>
+              <button onClick={() => onComplete(savedData.user, savedData.events)}
+                className="px-10 py-5 rounded-2xl font-bold text-xl transition-all hover:scale-105"
+                style={{ background: 'linear-gradient(135deg,#38BDF8,#818CF8)', color: 'white', boxShadow: '0 0 40px rgba(56,189,248,0.4)' }}>
                 🗓️ Place My Blocks →
               </button>
             </div>
@@ -627,19 +389,14 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         }
 
         return (
-          <div key="step-building" className="animate-fadeInUp flex flex-col items-center text-center px-6">
+          <div key="s-build" className="animate-fadeInUp flex flex-col items-center text-center px-6">
             <DrakoRobot size="xl" state="thinking" className="mb-8" />
             <h2 className="text-2xl font-bold mb-3 text-white">Building your perfect day...</h2>
-            <p className="text-[#38BDF8] mb-8 animate-pulse">🤖 Claude is analyzing your preferences</p>
+            <p className="text-[#38BDF8] mb-8 animate-pulse">🤖 Claude is analyzing your schedule</p>
             <div className="w-full max-w-sm mb-8">
-              <div className="h-2 rounded-full overflow-hidden relative" style={{ backgroundColor: 'rgba(30, 41, 59, 0.8)' }}>
-                <div className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
-                  style={{ background: 'linear-gradient(90deg, #38BDF8, #818CF8)', width: `${((state.buildingStep + 1) / BUILDING_STEPS.length) * 100}%` }}>
-                  <div className="absolute inset-0" style={{
-                    background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)',
-                    animation: 'shimmerSweep 1.5s ease-in-out infinite',
-                  }} />
-                </div>
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(30,41,59,0.8)' }}>
+                <div className="h-full rounded-full transition-all duration-700"
+                  style={{ background: 'linear-gradient(90deg,#38BDF8,#818CF8)', width: `${((state.buildingStep+1)/BUILDING_STEPS.length)*100}%` }} />
               </div>
             </div>
             <div className="space-y-3">
@@ -657,30 +414,24 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           </div>
         );
 
-      default:
-        return null;
+      default: return null;
     }
   };
 
   return (
     <div className="fixed inset-0 overflow-y-auto"
-      style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E1B4B 50%, #0F172A 100%)' }}>
-      {/* Animated background */}
+      style={{ background: 'linear-gradient(135deg,#0F172A 0%,#1E1B4B 50%,#0F172A 100%)' }}>
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl opacity-20"
-          style={{ background: 'radial-gradient(circle, #38BDF8, transparent)', animation: 'orbDrift1 12s ease-in-out infinite' }} />
+          style={{ background: 'radial-gradient(circle,#38BDF8,transparent)', animation: 'orbDrift1 12s ease-in-out infinite' }} />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl opacity-20"
-          style={{ background: 'radial-gradient(circle, #818CF8, transparent)', animation: 'orbDrift2 15s ease-in-out infinite' }} />
+          style={{ background: 'radial-gradient(circle,#818CF8,transparent)', animation: 'orbDrift2 15s ease-in-out infinite' }} />
         <div className="absolute inset-0"
-          style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+          style={{ backgroundImage: 'radial-gradient(circle,rgba(255,255,255,0.03) 1px,transparent 1px)', backgroundSize: '24px 24px' }} />
       </div>
-
-      <div className="relative z-10 min-h-full flex items-center justify-center py-10 px-4">
-        <div className="w-full max-w-lg">
-          {renderStep()}
-        </div>
+      <div className="relative z-10 min-h-full flex items-start justify-center py-10 px-4">
+        <div className="w-full max-w-lg pt-4">{renderStep()}</div>
       </div>
-
       <ProgressDots current={state.step} total={5} />
     </div>
   );
