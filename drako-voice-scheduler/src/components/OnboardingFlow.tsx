@@ -53,26 +53,6 @@ const ROLES = [
 
 const WAKE_TIMES = ['6am', '7am', '8am', '9am', '10am'] as const;
 
-const ACTIVITY_OPTIONS = [
-  { id: 'work',         emoji: '💼', label: 'Work',           color: '#3B82F6',  group: 'Core' },
-  { id: 'school',       emoji: '🎓', label: 'School/Classes', color: '#6366F1',  group: 'Core' },
-  { id: 'commute',      emoji: '🚌', label: 'Commute',        color: '#64748B',  group: 'Core' },
-  { id: 'gym',          emoji: '🏋️', label: 'Gym',            color: '#EF4444',  group: 'Health' },
-  { id: 'running',      emoji: '🏃', label: 'Running/Walk',   color: '#F97316',  group: 'Health' },
-  { id: 'meditation',   emoji: '🧘', label: 'Meditation',     color: '#6366F1',  group: 'Health' },
-  { id: 'cooking',      emoji: '🍳', label: 'Cooking',        color: '#F59E0B',  group: 'Life' },
-  { id: 'errands',      emoji: '🛒', label: 'Errands',        color: '#94A3B8',  group: 'Life' },
-  { id: 'deep_work',    emoji: '🧠', label: 'Deep Focus',     color: '#14B8A6',  group: 'Focus' },
-  { id: 'learning',     emoji: '📖', label: 'Learning',       color: '#10B981',  group: 'Focus' },
-  { id: 'creative',     emoji: '🎨', label: 'Creative',       color: '#EC4899',  group: 'Focus' },
-  { id: 'side_project', emoji: '🚀', label: 'Side Project',   color: '#8B5CF6',  group: 'Focus' },
-  { id: 'reading',      emoji: '📚', label: 'Reading',        color: '#22D3EE',  group: 'Focus' },
-  { id: 'social',       emoji: '👥', label: 'Friends/Social', color: '#A855F7',  group: 'Social' },
-  { id: 'family',       emoji: '🏠', label: 'Family Time',    color: '#84CC16',  group: 'Social' },
-  { id: 'gaming',       emoji: '🎮', label: 'Gaming/Fun',     color: '#F97316',  group: 'Leisure' },
-  { id: 'shows',        emoji: '📺', label: 'Shows/Movies',   color: '#38BDF8',  group: 'Leisure' },
-];
-
 const STRUGGLES = [
   { id: 'too_many_meetings', emoji: '😵', label: 'Too many meetings' },
   { id: 'context_switching', emoji: '🔀', label: 'Context switching' },
@@ -385,56 +365,60 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           </div>
         );
 
-      /* ── Step 3: Activity multi-select ───────────────── */
+      /* ── Step 3: Tinder-style swipe cards ──────────────── */
       case 3: {
-        const sel = state.selectedActivities;
-        const groups = ['Core', 'Health', 'Life', 'Focus', 'Social', 'Leisure'];
-        return (
-          <div key="s3" className="animate-fadeInUp flex flex-col items-center px-4 w-full max-w-lg">
-            <div className="text-center mb-5">
-              <h2 className="text-2xl font-bold text-white mb-1">What&apos;s in your day?</h2>
-              <p className="text-[#94A3B8] text-sm">
-                Pick everything that&apos;s part of your life
-                {sel.length > 0 && <span className="ml-2 text-[#38BDF8] font-medium">· {sel.length} picked</span>}
-              </p>
-            </div>
-            <div className="w-full space-y-4 mb-6">
-              {groups.map(g => {
-                const items = ACTIVITY_OPTIONS.filter(a => a.group === g);
-                return (
-                  <div key={g}>
-                    <p className="text-xs text-[#475569] uppercase tracking-wider font-semibold mb-2 px-1">{g}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {items.map(a => {
-                        const on = sel.includes(a.id);
-                        return (
-                          <button key={a.id} onClick={() => toggleActivity(a.id)}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium transition-all hover:scale-105"
-                            style={{
-                              background: on ? `${a.color}22` : 'rgba(30,41,59,0.7)',
-                              color: on ? a.color : '#94A3B8',
-                              border: `1.5px solid ${on ? a.color : '#334155'}`,
-                              boxShadow: on ? `0 0 10px ${a.color}30` : 'none',
-                            }}>
-                            <span>{a.emoji}</span>
-                            <span>{a.label}</span>
-                            {on && <span className="text-xs opacity-60">✓</span>}
-                          </button>
-                        );
-                      })}
+        const done = state.swipeIndex >= SWIPE_CATEGORIES.length;
+        if (done) {
+          const locked = SWIPE_CATEGORIES.filter(c => (state.timeAllocations[c.id] || 0) > 0);
+          return (
+            <div key="s3-summary" className="animate-fadeInUp flex flex-col items-center text-center px-6">
+              <DrakoRobot size="md" state="greeting" className="mb-4" />
+              <h2 className="text-2xl font-bold mb-2 text-white">Your time budget</h2>
+              <p className="text-[#94A3B8] mb-6">Here&apos;s how you want to spend your day</p>
+              <div className="w-full max-w-sm space-y-3 mb-8">
+                {locked.map(cat => {
+                  const mins = state.timeAllocations[cat.id] || 0;
+                  const hrs = Math.floor(mins / 60);
+                  const m = mins % 60;
+                  const label = hrs > 0 ? `${hrs}h ${m > 0 ? `${m}m` : ''}`.trim() : `${m}m`;
+                  return (
+                    <div key={cat.id} className="flex items-center gap-3 px-4 py-3 rounded-xl"
+                      style={{ background: `${cat.color}22`, border: `1px solid ${cat.color}44` }}>
+                      <span className="text-2xl">{cat.emoji}</span>
+                      <span className="text-white font-medium flex-1 text-left">{cat.name}</span>
+                      <span className="font-bold" style={{ color: cat.color }}>{label}</span>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+                {locked.length === 0 && (
+                  <p className="text-[#475569] text-sm">No activities selected — defaults will be used</p>
+                )}
+              </div>
+              <button onClick={handleSwipeDone}
+                className="w-full max-w-sm py-4 rounded-2xl font-bold text-lg transition-all hover:scale-[1.02]"
+                style={{ background: 'linear-gradient(135deg,#38BDF8,#818CF8)', color: 'white', boxShadow: '0 0 40px rgba(56,189,248,0.3)' }}>
+                Looks good — next →
+              </button>
             </div>
-            <button onClick={handleActivitiesDone} disabled={sel.length === 0}
-              className="w-full py-4 rounded-2xl font-bold text-lg transition-all hover:scale-[1.02] disabled:opacity-30 disabled:cursor-not-allowed sticky bottom-20"
-              style={{
-                background: sel.length > 0 ? 'linear-gradient(135deg,#38BDF8,#818CF8)' : '#1E293B',
-                color: 'white', boxShadow: sel.length > 0 ? '0 0 40px rgba(56,189,248,0.3)' : 'none',
-              }}>
-              {sel.length > 0 ? `Continue with ${sel.length} activit${sel.length === 1 ? 'y' : 'ies'} →` : 'Pick at least 1'}
-            </button>
+          );
+        }
+
+        const cat = SWIPE_CATEGORIES[state.swipeIndex];
+        const mins = state.timeAllocations[cat.id] ?? 30;
+        return (
+          <div key="s3-swipe" className="animate-fadeInUp flex flex-col items-center text-center px-6">
+            <p className="text-xs text-[#475569] uppercase tracking-wider font-semibold mb-4">
+              {state.swipeIndex + 1} / {SWIPE_CATEGORIES.length}
+            </p>
+            <h2 className="text-xl font-bold text-white mb-1">How much time for…</h2>
+            <p className="text-[#94A3B8] mb-6">Swipe to set, swipe up to lock in</p>
+            <SwipeCard
+              key={cat.id}
+              category={cat}
+              minutes={mins}
+              onTimeChange={(d) => handleSwipeTimeChange(cat.id, d)}
+              onLockIn={handleSwipeLockIn}
+            />
           </div>
         );
       }
