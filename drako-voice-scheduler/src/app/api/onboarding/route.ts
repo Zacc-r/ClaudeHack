@@ -55,13 +55,62 @@ const STRUGGLE_LABELS: Record<string, string> = {
 
 const COLORS = ['#6C5CE7', '#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#EF4444', '#8B5CF6', '#14B8A6'];
 
+interface LegacySurvey {
+  name: string;
+  role?: string;
+  workStyle?: string;
+  priorities?: string[];
+  wakeUpTime?: string;
+}
+
+function convertLegacySurvey(legacy: LegacySurvey): OnboardingSurvey {
+  const roleToType: Record<string, OnboardingSurvey['type']> = {
+    engineer: 'builder',
+    designer: 'builder',
+    pm: 'operator',
+    founder: 'hustler',
+    student: 'learner',
+    other: 'builder',
+  };
+
+  const wakeToRhythm: Record<string, OnboardingSurvey['rhythm']> = {
+    '06:00': 'early_bird',
+    '07:00': 'morning',
+    '08:00': 'morning',
+    '09:00': 'mid_morning',
+    '10:00': 'late_starter',
+  };
+
+  const priorityMap: Record<string, string> = {
+    'deep work': 'deep_focus',
+    'focus': 'deep_focus',
+    'meetings': 'meetings',
+    'exercise': 'exercise',
+    'creative': 'creative',
+    'learning': 'learning',
+    'wellness': 'breaks',
+  };
+
+  return {
+    name: legacy.name,
+    type: roleToType[legacy.role || ''] || 'builder',
+    rhythm: wakeToRhythm[legacy.wakeUpTime || ''] || 'morning',
+    nonNegotiables: (legacy.priorities || ['deep work']).map(p => priorityMap[p] || 'deep_focus'),
+    struggle: 'no_focus_time',
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const survey: OnboardingSurvey = await req.json();
+    const rawSurvey = await req.json();
 
-    if (!survey.name) {
+    if (!rawSurvey.name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
+
+    const survey: OnboardingSurvey = rawSurvey.type 
+      ? rawSurvey as OnboardingSurvey
+      : convertLegacySurvey(rawSurvey as LegacySurvey);
 
     const r = getRedis();
     const id = `usr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -69,10 +118,10 @@ export async function POST(req: NextRequest) {
     const user: UserProfile = {
       id,
       name: survey.name,
-      type: survey.type,
-      rhythm: survey.rhythm,
-      nonNegotiables: survey.nonNegotiables,
-      struggle: survey.struggle,
+      type: survey.type || 'builder',
+      rhythm: survey.rhythm || 'morning',
+      nonNegotiables: survey.nonNegotiables || ['deep_focus'],
+      struggle: survey.struggle || 'no_focus_time',
       createdAt: new Date().toISOString(),
     };
 
@@ -82,7 +131,7 @@ export async function POST(req: NextRequest) {
     const today = new Date().toISOString().split('T')[0];
     const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
-    const nonNegotiableText = survey.nonNegotiables
+    const nonNegotiableText = (survey.nonNegotiables || ['deep_focus'])
       .map(n => NON_NEGOTIABLE_LABELS[n] || n)
       .join(', ');
 

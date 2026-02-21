@@ -169,11 +169,11 @@ export async function POST(req: NextRequest) {
       late_starter: 'a late starter who gets going around 11 AM or later',
     };
 
-    const struggleDescriptions: Record<string, string> = {
-      too_many_meetings: 'having too many meetings - so protect their focus time',
-      context_switching: 'context switching - so help them batch similar tasks',
-      no_focus_time: 'never having enough focus time - so guard their deep work blocks',
-      no_boundaries: 'poor work-life boundaries - so remind them to wrap up on time',
+    const struggleCoaching: Record<string, string> = {
+      too_many_meetings: 'They struggle with too many meetings. Protect their focus blocks. If they try to add meetings during focus time, suggest batching meetings together instead.',
+      context_switching: 'They struggle with context switching. Group similar tasks together. Don\'t let them scatter meetings throughout the day.',
+      no_focus_time: 'They never have enough focus time. Be aggressive about protecting long uninterrupted blocks. Push back if they try to fragment their focus.',
+      no_boundaries: 'They have poor work-life boundaries. Help them set a hard stop time. Don\'t let work events creep past 6 PM.',
     };
 
     const nonNegotiableLabels: Record<string, string> = {
@@ -197,13 +197,14 @@ export async function POST(req: NextRequest) {
       
       const typeDesc = userType ? typeDescriptions[userType] || userType : 'a professional';
       const rhythmDesc = userRhythm ? rhythmDescriptions[userRhythm] || userRhythm : 'flexible';
-      const struggleDesc = userStruggle ? struggleDescriptions[userStruggle] : null;
+      const coaching = userStruggle ? struggleCoaching[userStruggle] : 'Help them stay organized.';
       const prioritiesText = userNonNegotiables?.map(n => nonNegotiableLabels[n] || n).join(', ') || 'general productivity';
 
-      userContext = `You're talking with ${user.name}. They're ${typeDesc}, and they're ${rhythmDesc}.
-Their priorities are: ${prioritiesText}.${struggleDesc ? `
-They struggle with ${struggleDesc}.` : ''}
-Protect their top priorities. If they try to schedule over them, gently push back.`;
+      userContext = `Speaking with: ${user.name}
+They are: ${typeDesc}
+Their brain turns on: ${rhythmDesc}
+Priorities: ${prioritiesText}
+Coaching note: ${coaching}`;
     } else {
       userContext = `You're speaking with a new user.`;
     }
