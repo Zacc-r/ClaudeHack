@@ -18,6 +18,7 @@ interface UserProfile {
   name: string;
   type: string;
   rhythm: string;
+  bedtime: string;
   nonNegotiables: string[];
   selectedActivities: string[];
   struggle: string;
