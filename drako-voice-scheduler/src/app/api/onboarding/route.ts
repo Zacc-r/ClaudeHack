@@ -151,8 +151,8 @@ export async function POST(req: NextRequest) {
     const rawNonNegs = rawSurvey.nonNegotiables || rawSurvey.priorities || ['deep_focus'];
     const normalizedNonNegs = rawNonNegs.map((n: string) => NON_NEG_NORMALIZE[n] || n);
     const normalizedStruggle = rawSurvey.struggle || 'no_focus_time';
-    // New: explicit activity list from multi-select step
     const selectedActivities: string[] = rawSurvey.selectedActivities || [];
+    const bedtime: string = rawSurvey.bedtime || '11pm';
 
     const r = getRedis();
     const id = `usr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -162,6 +162,7 @@ export async function POST(req: NextRequest) {
       name: rawSurvey.name,
       type: normalizedType,
       rhythm: normalizedRhythm,
+      bedtime,
       nonNegotiables: normalizedNonNegs,
       selectedActivities,
       struggle: normalizedStruggle,
@@ -236,7 +237,7 @@ Respond ONLY with valid JSON:
 
 Name: ${rawSurvey.name}
 Type: ${normalizedType} (${typeDesc})
-Wakes up: ${normalizedRhythm} (${rhythmDesc})
+Daily window: wake ${normalizedRhythm} → sleep ${bedtime}
 Activities in their day: ${selectedActivities.length > 0 ? selectedActivities.join(', ') : nonNegotiableText}
 Biggest struggle: ${struggleDesc}
 
