@@ -10,7 +10,8 @@
   "phase_status": "in_progress",
   "apis": {
     "tavus": { "status": "not_tested", "key_set": false },
-    "claude": { "status": "not_tested", "key_set": false }
+    "claude": { "status": "not_tested", "key_set": true },
+    "redis": { "status": "connected", "key_set": true, "version": "8.2.1", "host": "redis-15331.c277.us-east-1-3.ec2.cloud.redislabs.com:15331" }
   },
   "repo": {
     "name": "ClaudeHack",

@@ -14,9 +14,12 @@
 - [x] iPhone 16e identified — UDID: 00008140-000871E43A9B801C, WiFi: 10.4.33.117
 - [x] Device info logged to shared-context/device-info.md
 - [x] Dev server URL: http://10.4.33.167:3000 (accessible from iPhone over WiFi)
+- [x] Redis CLI installed (v8.6.0) and cloud instance connected (v8.2.1, AWS us-east-1)
+- [x] Claude API key found in .env.local (via Vercel CLI)
+- [x] Redis URL added to .env.local
 
 ### In Progress
-- [ ] API keys setup (Tavus, Claude)
+- [ ] API keys setup (Tavus — still needed)
 - [ ] Project scaffold (drako-voice-scheduler/)
 - [ ] OpenClaw installation
 
