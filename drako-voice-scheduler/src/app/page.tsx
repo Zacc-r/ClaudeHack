@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useCopilotReadable, useCopilotAction } from '@copilotkit/react-core';
+import { CopilotPopup } from '@copilotkit/react-ui';
 import { Header } from '@/components/Header';
 import { VideoCall } from '@/components/VideoCall';
 import { ScheduleView } from '@/components/ScheduleView';
@@ -63,6 +64,19 @@ export default function Home() {
     es.onmessage = (e) => {
       try {
         const update = JSON.parse(e.data);
+
+        if (update.type === 'conversation_started') {
+          setStatus('active');
+          return;
+        }
+
+        if (update.type === 'conversation_ended') {
+          setStatus('ready');
+          setConversationUrl(null);
+          setIsActive(false);
+          setSpeaker('idle');
+          return;
+        }
 
         if (update.type === 'add' && update.event) {
           setEvents(prev => {
@@ -207,9 +221,12 @@ export default function Home() {
     return (
       <div
         className="flex min-h-screen items-center justify-center"
-        style={{ background: 'var(--bg-primary, #0A0A0F)' }}
+        style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E1B4B 50%, #0F172A 100%)' }}
       >
-        <div className="text-4xl animate-pulse">🐉</div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="text-6xl animate-robotIdle">🤖</div>
+          <div className="text-lg text-[#38BDF8] animate-pulse">Loading DRAKO...</div>
+        </div>
       </div>
     );
   }
@@ -222,8 +239,16 @@ export default function Home() {
     <div className="flex flex-col min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <Header status={status} userName={user.name} onReset={resetDemo} />
 
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        <section className="w-full lg:w-1/2 p-4 lg:p-6 flex flex-col">
+      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+        {/* Video Call Panel - Left Side */}
+        <section className="w-full lg:w-1/2 p-4 lg:p-6 flex flex-col relative">
+          <div 
+            className="absolute inset-0 backdrop-blur-glass"
+            style={{ 
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 27, 75, 0.6))',
+              zIndex: -1,
+            }}
+          />
           <VideoCall
             conversationUrl={conversationUrl}
             isActive={isActive}
@@ -238,10 +263,11 @@ export default function Home() {
             <div className="mt-4 flex gap-3">
               <button
                 onClick={() => setSpeaker(s => s === 'user' ? 'drako' : 'user')}
-                className="flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                className="flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
                 style={{
-                  backgroundColor: 'var(--bg-tertiary)',
+                  backgroundColor: 'rgba(30, 41, 59, 0.8)',
                   color: 'var(--text-secondary)',
+                  border: '1px solid #334155',
                 }}
               >
                 Toggle Speaker (Demo)
@@ -250,8 +276,12 @@ export default function Home() {
           )}
         </section>
 
+        {/* Gradient Divider */}
+        <div className="hidden lg:block w-1 gradient-divider" />
+
+        {/* Schedule Panel - Right Side */}
         <section
-          className="w-full lg:w-1/2 flex flex-col border-t lg:border-t-0 lg:border-l overflow-y-auto"
+          className="w-full lg:w-1/2 flex flex-col border-t lg:border-t-0 overflow-y-auto relative"
           style={{ borderColor: 'var(--border)', maxHeight: '100vh' }}
         >
           <ScheduleView
@@ -261,6 +291,32 @@ export default function Home() {
           />
         </section>
       </main>
+
+      {/* Powered By Badge */}
+      <footer 
+        className="flex items-center justify-center gap-2 py-3 text-xs"
+        style={{ 
+          backgroundColor: 'rgba(15, 23, 42, 0.9)',
+          borderTop: '1px solid var(--border)',
+          color: 'var(--text-muted)',
+        }}
+      >
+        <span>Powered by</span>
+        <span className="font-semibold text-[#38BDF8]">Claude</span>
+        <span>+</span>
+        <span className="font-semibold text-[#818CF8]">Tavus</span>
+        <span className="mx-2">•</span>
+        <span className="font-semibold text-[#A855F7]">CopilotKit</span>
+      </footer>
+
+      {/* CopilotKit Popup */}
+      <CopilotPopup
+        instructions={`You are DRAKO's text assistant. The user's name is ${user.name}. They are a ${user.type}. Help them modify their schedule. You can add, move, or remove events. Be concise and friendly.`}
+        labels={{
+          title: "💬 Chat with DRAKO",
+          initial: "Need to adjust your schedule? Type here!",
+        }}
+      />
     </div>
   );
 }

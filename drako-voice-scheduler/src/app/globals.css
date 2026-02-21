@@ -6,6 +6,8 @@
   --bg-tertiary: #1E1E2E;
   --accent-primary: #6C5CE7;
   --accent-glow: #A855F7;
+  --accent-sky: #38BDF8;
+  --accent-indigo: #818CF8;
   --accent-success: #10B981;
   --accent-warning: #F59E0B;
   --accent-danger: #EF4444;
@@ -13,6 +15,7 @@
   --text-secondary: #94A3B8;
   --text-muted: #475569;
   --border: #1E293B;
+  --font-heading: 'Space Grotesk', sans-serif;
 }
 
 @theme inline {
@@ -26,6 +29,32 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.copilotKitPopup,
+[class*="copilotkit"],
+[data-copilotkit] {
+  --copilot-kit-primary-color: #38BDF8 !important;
+  --copilot-kit-background-color: #0F172A !important;
+  --copilot-kit-response-button-background-color: #1E293B !important;
+  --copilot-kit-contrast-color: #E2E8F0 !important;
+  color: #E2E8F0 !important;
+}
+
+[class*="copilotkit"] input,
+[class*="copilotkit"] textarea {
+  background-color: #1E293B !important;
+  color: #E2E8F0 !important;
+  border-color: #334155 !important;
+}
+
+[class*="copilotkit"] button {
+  color: #E2E8F0 !important;
 }
 
 @keyframes float {
@@ -129,27 +158,49 @@ body {
 
 @keyframes robotThinking {
   0%, 100% { 
-    filter: drop-shadow(0 0 8px rgba(108, 92, 231, 0.6));
+    filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.6));
   }
   25% { 
-    filter: drop-shadow(0 0 16px rgba(168, 85, 247, 0.9));
+    filter: drop-shadow(0 0 16px rgba(129, 140, 248, 0.9));
   }
   50% { 
-    filter: drop-shadow(0 0 24px rgba(108, 92, 231, 1));
+    filter: drop-shadow(0 0 24px rgba(56, 189, 248, 1));
   }
   75% { 
-    filter: drop-shadow(0 0 16px rgba(168, 85, 247, 0.9));
+    filter: drop-shadow(0 0 16px rgba(129, 140, 248, 0.9));
   }
 }
 
 @keyframes robotEyeGlow {
   0%, 100% { 
-    text-shadow: 0 0 10px rgba(108, 92, 231, 0.8), 0 0 20px rgba(108, 92, 231, 0.4);
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.8), 0 0 16px rgba(56, 189, 248, 0.4);
     transform: scale(1);
   }
   50% { 
-    text-shadow: 0 0 20px rgba(168, 85, 247, 1), 0 0 40px rgba(168, 85, 247, 0.6), 0 0 60px rgba(108, 92, 231, 0.4);
-    transform: scale(1.1);
+    box-shadow: 0 0 16px rgba(56, 189, 248, 1), 0 0 32px rgba(56, 189, 248, 0.6), 0 0 48px rgba(129, 140, 248, 0.4);
+    transform: scale(1.2);
+  }
+}
+
+@keyframes robotIdle {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4px) scale(1.02); }
+}
+
+@keyframes robotGreeting {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-12px) rotate(-3deg); }
+  75% { transform: translateY(-12px) rotate(3deg); }
+}
+
+@keyframes cardSlideIn {
+  from { 
+    opacity: 0; 
+    transform: translateX(-30px) scale(0.95);
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0) scale(1);
   }
 }
 
@@ -174,11 +225,23 @@ body {
 }
 
 .animate-robotThinking {
-  animation: robotThinking 1.5s ease-in-out infinite, eyePulse 1.5s ease-in-out infinite;
+  animation: robotThinking 1.5s ease-in-out infinite;
 }
 
 .animate-robotEyeGlow {
   animation: robotEyeGlow 1.2s ease-in-out infinite;
+}
+
+.animate-robotIdle {
+  animation: robotIdle 3s ease-in-out infinite;
+}
+
+.animate-robotGreeting {
+  animation: robotGreeting 0.8s ease-in-out;
+}
+
+.animate-cardSlideIn {
+  animation: cardSlideIn 400ms ease-out forwards;
 }
 
 @keyframes bounce {
@@ -206,6 +269,20 @@ body {
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes glowPulse {
+  0%, 100% { 
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.3), 0 0 40px rgba(129, 140, 248, 0.2);
+  }
+  50% { 
+    box-shadow: 0 0 40px rgba(56, 189, 248, 0.5), 0 0 80px rgba(129, 140, 248, 0.3);
+  }
+}
+
 .animate-progressFill {
   animation: progressFill 2.5s ease-out forwards;
 }
@@ -216,4 +293,29 @@ body {
 
 .animate-checkmark {
   animation: checkmark 0.3s ease-out forwards;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.animate-glowPulse {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+.backdrop-blur-glass {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.gradient-divider {
+  background: linear-gradient(180deg, 
+    transparent 0%, 
+    rgba(56, 189, 248, 0.1) 20%, 
+    rgba(129, 140, 248, 0.15) 50%, 
+    rgba(56, 189, 248, 0.1) 80%, 
+    transparent 100%
+  );
 }

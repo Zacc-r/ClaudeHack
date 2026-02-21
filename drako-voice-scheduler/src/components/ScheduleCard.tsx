@@ -4,15 +4,48 @@ export interface ScheduleEvent {
   id: string;
   title: string;
   start: string;
-  end: string | null;
+  end?: string;
   date: string;
   color?: string;
+  category?: string;
+  priority?: boolean;
 }
 
 interface ScheduleCardProps {
   event: ScheduleEvent;
   isNew: boolean;
   onRemove: (id: string) => void;
+}
+
+const CATEGORY_COLORS: Record<string, string> = {
+  exercise: '#EF4444',
+  'deep work': '#14B8A6',
+  creative: '#EC4899',
+  social: '#8B5CF6',
+  learning: '#F59E0B',
+  meditation: '#6366F1',
+  entertainment: '#10B981',
+  finance: '#F97316',
+};
+
+function getCategoryColor(event: ScheduleEvent): string {
+  if (event.color) return event.color;
+  
+  if (event.category) {
+    const normalizedCategory = event.category.toLowerCase();
+    if (CATEGORY_COLORS[normalizedCategory]) {
+      return CATEGORY_COLORS[normalizedCategory];
+    }
+  }
+  
+  const titleLower = event.title.toLowerCase();
+  for (const [category, color] of Object.entries(CATEGORY_COLORS)) {
+    if (titleLower.includes(category)) {
+      return color;
+    }
+  }
+  
+  return 'var(--accent-primary)';
 }
 
 function timeToMinutes(time: string): number {
@@ -31,7 +64,7 @@ export function ScheduleCard({ event, isNew, onRemove }: ScheduleCardProps) {
   const top = (startMinutes - START_HOUR * 60) * (HOUR_HEIGHT / 60);
   const height = Math.max(duration * (HOUR_HEIGHT / 60), 28);
 
-  const color = event.color || 'var(--accent-primary)';
+  const color = getCategoryColor(event);
 
   return (
     <div
@@ -63,28 +96,34 @@ export function ScheduleCard({ event, isNew, onRemove }: ScheduleCardProps) {
           </span>
         </div>
 
-        <button
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-[var(--accent-danger)]/20"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(event.id);
-          }}
-          aria-label="Remove event"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="var(--accent-danger)"
-            viewBox="0 0 24 24"
+        <div className="flex items-center gap-1">
+          {event.priority && (
+            <span className="text-sm" title="Priority">⭐</span>
+          )}
+          
+          <button
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-[var(--accent-danger)]/20"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(event.id);
+            }}
+            aria-label="Remove event"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="var(--accent-danger)"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

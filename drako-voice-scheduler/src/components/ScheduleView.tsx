@@ -31,15 +31,20 @@ export function ScheduleView({ events, newEventIds, onRemoveEvent }: ScheduleVie
   return (
     <div
       className="flex-1 overflow-y-auto scrollbar-thin"
-      style={{ backgroundColor: 'var(--bg-primary)' }}
+      style={{ 
+        background: 'linear-gradient(180deg, rgba(10, 10, 15, 0.95), rgba(15, 23, 42, 0.9))',
+      }}
     >
-      <div className="p-4">
-        <h2
-          className="text-lg font-semibold mb-4"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          Today&apos;s Schedule
-        </h2>
+      <div className="p-4 lg:p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-white">
+            Today&apos;s Schedule
+          </h2>
+          <div className="flex items-center gap-2 text-sm text-[#94A3B8]">
+            <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
+            {events.length} event{events.length !== 1 ? 's' : ''}
+          </div>
+        </div>
 
         <div
           className="relative"
@@ -52,14 +57,14 @@ export function ScheduleView({ events, newEventIds, onRemoveEvent }: ScheduleVie
               style={{ top: `${(hour - 7) * HOUR_HEIGHT}px` }}
             >
               <span
-                className="w-10 text-xs font-mono-time text-right pr-2 -translate-y-2"
+                className="w-12 text-xs font-mono-time text-right pr-3 -translate-y-2"
                 style={{ color: 'var(--text-muted)' }}
               >
                 {formatHour(hour)}
               </span>
               <div
                 className="flex-1 border-t"
-                style={{ borderColor: 'var(--border)' }}
+                style={{ borderColor: 'rgba(30, 41, 59, 0.6)' }}
               />
             </div>
           ))}
@@ -70,23 +75,35 @@ export function ScheduleView({ events, newEventIds, onRemoveEvent }: ScheduleVie
               style={{ top: `${nowOffset}px` }}
             >
               <div
-                className="w-2 h-2 rounded-full -ml-1"
-                style={{ backgroundColor: 'var(--accent-danger)' }}
+                className="w-3 h-3 rounded-full -ml-1.5 animate-pulse"
+                style={{ 
+                  backgroundColor: '#EF4444',
+                  boxShadow: '0 0 12px rgba(239, 68, 68, 0.6)',
+                }}
               />
               <div
                 className="flex-1 h-0.5"
-                style={{ backgroundColor: 'var(--accent-danger)' }}
+                style={{ 
+                  background: 'linear-gradient(90deg, #EF4444, transparent)',
+                }}
               />
             </div>
           )}
 
-          {events.map((event) => (
-            <ScheduleCard
+          {events.map((event, index) => (
+            <div
               key={event.id}
-              event={event}
-              isNew={newEventIds.has(event.id)}
-              onRemove={onRemoveEvent}
-            />
+              className={newEventIds.has(event.id) ? 'animate-cardSlideIn' : ''}
+              style={{ 
+                animationDelay: newEventIds.has(event.id) ? `${index * 50}ms` : '0ms',
+              }}
+            >
+              <ScheduleCard
+                event={event}
+                isNew={newEventIds.has(event.id)}
+                onRemove={onRemoveEvent}
+              />
+            </div>
           ))}
 
           {events.length === 0 && (
@@ -94,10 +111,10 @@ export function ScheduleView({ events, newEventIds, onRemoveEvent }: ScheduleVie
               className="absolute inset-0 flex items-center justify-center"
               style={{ color: 'var(--text-muted)' }}
             >
-              <div className="text-center">
-                <span className="text-4xl block mb-2">📅</span>
-                <p>No events scheduled</p>
-                <p className="text-sm">Talk to DRAKO to add some!</p>
+              <div className="text-center p-8 rounded-2xl" style={{ backgroundColor: 'rgba(30, 41, 59, 0.4)' }}>
+                <span className="text-5xl block mb-4">📅</span>
+                <p className="text-lg font-medium text-white mb-2">No events yet</p>
+                <p className="text-sm text-[#94A3B8]">Talk to DRAKO or use the chat to add events!</p>
               </div>
             </div>
           )}
