@@ -122,7 +122,6 @@ async function createTavusConversation(config: {
   personaId: string;
   context: string;
   callbackUrl: string;
-  toolsCallbackUrl: string;
 }) {
   const res = await fetch(`${TAVUS_BASE}/conversations`, {
     method: 'POST',
@@ -138,7 +137,6 @@ async function createTavusConversation(config: {
       properties: {
         max_call_duration: 600,
         participant_left_timeout: 30,
-        tools_callback_url: config.toolsCallbackUrl,
       },
     }),
   });
@@ -253,7 +251,6 @@ Coaching note: ${coaching}`;
       personaId: tavusPersona.persona_id,
       context: fullContext,
       callbackUrl: `${appUrl}/api/webhook/tavus`,
-      toolsCallbackUrl: `${appUrl}/api/tavus/tools`,
     });
 
     if (!conversation.conversation_url) {
